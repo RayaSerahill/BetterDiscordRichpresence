@@ -76,7 +76,7 @@ namespace BetterDiscordRichPresence
                 Log.Information("IPC initialized.");
             } catch (Exception ex)
             {
-                Log.Error($"Failed to initialize IPC: {ex.Message}");
+                Log.Information($"Failed to initialize IPC: {ex.Message}");
                 ipcInitialized = false;
             }
         }

@@ -10,7 +10,7 @@ public class SimpleBlackjackIpc
     {
         this.plugin = plugin;
         IsLoggedIn = isLoggedIn;
-        EzIPC.Init(this, "SimpleBlackjack", safeWrapper: SafeWrapper.AnyException, false);
+        EzIPC.Init(this, "SimpleBlackjack", SafeWrapper.AnyException);
     }
     
     [EzIPC]

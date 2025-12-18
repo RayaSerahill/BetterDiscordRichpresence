@@ -130,7 +130,6 @@ namespace BetterDiscordRichPresence.Windows
                 ImGui.TableSetupColumn("Image URL", ImGuiTableColumnFlags.WidthFixed, 200f); // Set uniform width
                 ImGui.TableSetupColumn("Delete", ImGuiTableColumnFlags.WidthFixed, 90f);
 
-                ImGui.TableHeadersRow();
 
                 for (var i = 0; i < configuration.ZoneImages.Count; i++)
                 {
