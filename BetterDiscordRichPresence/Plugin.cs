@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using Dalamud.Game.Command;
 using Dalamud.IoC;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Game.ClientState;
-using Dalamud.Game.ClientState.Objects;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using DiscordRPC;
 using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using BetterDiscordRichPresence.Windows;
 using ECommons;
+using ECommons.GameFunctions;
 
 namespace BetterDiscordRichPresence
 {
@@ -25,9 +24,9 @@ namespace BetterDiscordRichPresence
         [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
         [PluginService] private static IClientState ClientState { get; set; } = null!;
         [PluginService] private static IDataManager DataManager { get; set; } = null!;
+        [PluginService] private static IFramework Framework { get; set; } = null!;
         [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-        private SimpleBlackjackIpc sbj { get; set; }
-        private bool ipcInitialized = false;
+        [PluginService] private static IPartyList PartyList { get; set; } = null!;
 
         private const string CommandName = "/drp";
 
@@ -39,7 +38,10 @@ namespace BetterDiscordRichPresence
         private bool pendingTerritoryUpdate;
         private DateTime territoryUpdateTime;
         private ExcelSheet<TerritoryType>? territories;
-        public Boolean IsHosting = false;
+
+        private DateTime nextPartyCheckTime = DateTime.MinValue;
+        private int lastPartySize = -1;
+        private string lastPartyState = string.Empty;
 
         public Plugin()
         {
@@ -57,35 +59,11 @@ namespace BetterDiscordRichPresence
             PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
 
             ClientState.TerritoryChanged += OnTerritoryChanged;
-            ClientState.Login           += OnLogin;
-            ClientState.Logout          += OnLogout;
-            
-            InitializeIpc();
+            ClientState.Login += OnLogin;
+            ClientState.Logout += OnLogout;
+            Framework.Update += OnFrameworkUpdate;
         }
-    
-        private void InitializeIpc() {
-            try
-            {
-                Log.Information("Initializing IPC for SimpleBlackjack...");
-            
-                sbj = new SimpleBlackjackIpc(
-                    this,
-                    IsUserLoggedIn
-                );
-                ipcInitialized = true;
-                Log.Information("IPC initialized.");
-            } catch (Exception ex)
-            {
-                Log.Information($"Failed to initialize IPC: {ex.Message}");
-                ipcInitialized = false;
-            }
-        }
-        
-        internal bool IsUserLoggedIn()
-        {
-            return sbj.IsLoggedIn();
-        }
-        
+
         public void Dispose()
         {
             windowSystem.RemoveAllWindows();
@@ -99,8 +77,9 @@ namespace BetterDiscordRichPresence
             }
 
             ClientState.TerritoryChanged -= OnTerritoryChanged;
-            ClientState.Login           -= OnLogin;
-            ClientState.Logout          -= OnLogout;
+            ClientState.Login -= OnLogin;
+            ClientState.Logout -= OnLogout;
+            Framework.Update -= OnFrameworkUpdate;
         }
 
         private void InitializeDiscord()
@@ -113,13 +92,37 @@ namespace BetterDiscordRichPresence
         private void OnLogin()
         {
             startTime = DateTime.UtcNow;
+            lastPartySize = -1;
+            lastPartyState = string.Empty;
             UpdateRichPresence();
         }
 
-        private async void OnTerritoryChanged(ushort _)
+        private void OnTerritoryChanged(ushort _)
         {
             pendingTerritoryUpdate = true;
-            territoryUpdateTime     = DateTime.UtcNow.AddSeconds(5);
+            territoryUpdateTime = DateTime.UtcNow.AddSeconds(5);
+            startTime = DateTime.UtcNow;
+        }
+
+        private void OnFrameworkUpdate(IFramework _)
+        {
+            if (!ClientState.IsLoggedIn)
+                return;
+
+            if (DateTime.UtcNow < nextPartyCheckTime)
+                return;
+
+            nextPartyCheckTime = DateTime.UtcNow.AddSeconds(1);
+
+            var partySize = GetPartySize();
+            var partyState = GetPartyStateSignature();
+
+            if (partySize != lastPartySize || partyState != lastPartyState)
+            {
+                lastPartySize = partySize;
+                lastPartyState = partyState;
+                UpdateRichPresence();
+            }
         }
 
         private void DrawUI()
@@ -129,6 +132,7 @@ namespace BetterDiscordRichPresence
                 pendingTerritoryUpdate = false;
                 UpdateRichPresence();
             }
+
             windowSystem.Draw();
         }
 
@@ -148,6 +152,9 @@ namespace BetterDiscordRichPresence
 
         private void OnLogout(int type, int code)
         {
+            lastPartySize = -1;
+            lastPartyState = string.Empty;
+
             if (discordClient?.IsInitialized == true)
                 discordClient.ClearPresence();
         }
@@ -163,35 +170,31 @@ namespace BetterDiscordRichPresence
             var character = ClientState.LocalPlayer;
             if (character == null)
                 return;
-            
-            if (IsUserLoggedIn() && !IsHosting)
-            {
-                IsHosting = true;
-            }
-            else if (!IsUserLoggedIn() && IsHosting)
-            {
-                IsHosting = false;
-            }
 
             territories ??= DataManager.GetExcelSheet<TerritoryType>();
-            var territory       = territories.GetRow(ClientState.TerritoryType);
-            var territoryId = ClientState.TerritoryType;
-            var territoryResolver = territories.First(row => row.RowId == territoryId);
-            var territoryName = (territory.PlaceName.Value.Name).ToString() ?? "Unknown Location";
-            var partySize       = GetPartySize();
-            var partyString  = partySize > 1 ? $" ({partySize} of 8)" : string.Empty;
-
-            // Use zone-specific image if configured for this territory
-            foreach (var z in Configuration.ZoneImages)
+            var territory = territories.GetRow(ClientState.TerritoryType);
+            var territoryName = territory.PlaceName.Value.Name.ToString() ?? "Unknown Location";
+            Log.Information("{TerritoryIsd}", ClientState.TerritoryType);
+            switch (ClientState.TerritoryType)
             {
-                Log.Information($"Checking ZoneImage: z.Area={z.Area}, territoryName={territoryName}, Enabled={z.Enabled}");
-            } 
+                case 1250: //Minimalist Private House 
+                    territoryName = "Private House - Minimalist";
+                    break;
+                case 1251: //Minimalist Private Mansion 
+                    territoryName = "Private Mansion - Minimalist";
+                    break;
+            }
             
+            var partySize = GetPartySize();
+            var maxParty = 4;
+
+            if (partySize > 4) maxParty = 8;
+            if (partySize > 8) maxParty = 24;
+
+            var partyString = partySize > 1 ? $" ({partySize} of {maxParty})" : string.Empty;
+
             var zoneMatch = FindZoneMatch(territoryName);
-            
-            // Log all values in zoneMatch for debugging
-            Log.Information($"ZoneMatch: {zoneMatch?.Area}, ImageUrl: {zoneMatch?.ImageUrl}, Enabled: {zoneMatch?.Enabled}");
-            
+
             string imageKey;
             if (zoneMatch != null && !string.IsNullOrEmpty(zoneMatch.ImageUrl))
             {
@@ -206,27 +209,21 @@ namespace BetterDiscordRichPresence
                 imageKey = "default";
             }
 
-            var useSbj = Configuration.SbjEnabled
-                         && !string.IsNullOrEmpty(Configuration.SbjImg)
-                         && !string.IsNullOrEmpty(Configuration.SbjText)
-                         && !string.IsNullOrEmpty(Configuration.SbjLocation)
-                         && IsHosting;
-
             var presence = new RichPresence
             {
-                Details = useSbj ? Configuration.SbjText : $"{character.Name}{partyString}",
-                State   = useSbj ? Configuration.SbjLocation : $"in {territoryName}",
-                Assets  = new Assets
+                Details = $"{character.Name} {partyString}",
+                State = $"in {territoryName}",
+                Assets = new Assets
                 {
-                    LargeImageKey  = useSbj ? Configuration.SbjImg : imageKey,
-                    LargeImageText = useSbj ? Configuration.SbjLocation : territoryName
+                    LargeImageKey = imageKey,
+                    LargeImageText = territoryName
                 },
-                Timestamps = new Timestamps { Start = useSbj ? startTime : DateTime.UtcNow },
+                Timestamps = new Timestamps { Start = startTime },
             };
 
             var buttons = new List<Button>();
             if (Configuration.Enabled)
-                buttons.Add(new Button { Label = Configuration.Text,  Url = Configuration.Link });
+                buttons.Add(new Button { Label = Configuration.Text, Url = Configuration.Link });
             if (Configuration.Enabled2)
                 buttons.Add(new Button { Label = Configuration.Text2, Url = Configuration.Link2 });
             presence.Buttons = buttons.ToArray();
@@ -234,43 +231,58 @@ namespace BetterDiscordRichPresence
             discordClient.SetPresence(presence);
         }
 
-        private string GetJobIcon(uint jobId) => jobId switch
+        private unsafe int GetPartySize()
         {
-            1  => "gladiator",  2  => "pugilist", 3  => "marauder", 4  => "lancer",
-            5  => "archer",     6  => "conjurer", 7  => "thaumaturge",19 => "paladin",
-            20 => "monk",       21 => "warrior",  22 => "dragoon",   23 => "bard",
-            24 => "whitemage",  25 => "blackmage",26 => "arcanist",  27 => "summoner",
-            28 => "scholar",    30 => "ninja",    31 => "machinist",32 => "darkknight",
-            33 => "astrologian",34 => "samurai",  35 => "redmage",   36 => "bluemage",
-            37 => "gunbreaker", 38 => "dancer",   39 => "reaper",    40 => "sage",
-            _  => "adventurer"
-        };
-
-        private int GetPartySize()
-        {
-            unsafe
-            {
-                var partyManager = GroupManager.Instance();
-                return partyManager->MainGroup.MemberCount;
-            }
+            var partyManager = GroupManager.Instance();
+            return partyManager == null ? 0 : partyManager->MainGroup.MemberCount;
         }
-        
+
+        private unsafe string GetPartyStateSignature()
+        {
+            var partyManager = GroupManager.Instance();
+            if (partyManager == null)
+                return string.Empty;
+
+            var memberCount = partyManager->MainGroup.MemberCount;
+            var parts = new List<string>(memberCount);
+            var isAlliance = partyManager->GetGroup()->IsAlliance;
+
+            if (isAlliance)
+            {
+                var allianceMembers = partyManager->GetGroup()->AllianceMembers;
+                for (var i = 0; i < allianceMembers.Length; i++)
+                {
+                    var member = allianceMembers[i];
+                    if (member.Name.IsEmpty) continue;
+
+                    parts.Add($"{member.ContentId}:{member.TerritoryType}");
+                }
+            }
+            else
+            {
+                for (var i = 0; i < memberCount; i++)
+                {
+                    var member = partyManager->MainGroup.GetPartyMemberByIndex(i);
+                    if (member == null)
+                        continue;
+
+                    parts.Add($"{member->ContentId}:{member->TerritoryType}");
+                }
+            }
+
+            return string.Join("|", parts);
+        }
+
         private ZoneImage? FindZoneMatch(object territoryNameObj)
         {
-            // Convert the incoming territoryName into an ordinary string
             var territoryName = territoryNameObj?.ToString() ?? string.Empty;
 
             foreach (var z in Configuration.ZoneImages)
             {
-                Log.Information($"Checking ZoneImage: Area={z.Area}, TerritoryName={territoryName}, Enabled={z.Enabled}");
                 if (z.Enabled && string.Equals(z.Area, territoryName, StringComparison.OrdinalIgnoreCase))
-                {
-                    Log.Information($"Zone match found: {z.Area}");
                     return z;
-                }
             }
 
-            Log.Information($"No zone match found for TerritoryName: {territoryName}");
             return null;
         }
     }

@@ -27,12 +27,6 @@ namespace BetterDiscordRichPresence
         public bool   Enabled2 { get; set; } = true;
         public string Text2    { get; set; } = string.Empty;
         public string Link2    { get; set; } = string.Empty;
-        
-        // IPC settings
-        public bool   SbjEnabled { get; set; } = true;
-        public string SbjImg    { get; set; } = string.Empty;
-        public string SbjText    { get; set; } = string.Empty;
-        public string SbjLocation    { get; set; } = string.Empty;
 
         // Default image URL for rich presence
         public string ImageUrl    { get; set; } = string.Empty;

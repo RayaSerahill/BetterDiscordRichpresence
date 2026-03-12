@@ -173,44 +173,6 @@ namespace BetterDiscordRichPresence.Windows
             var discordApp = configuration.DiscordApp ?? string.Empty;
             if (ImGui.InputText("##bd_discord_app", ref discordApp, 512))
                 UpdateConfig(() => configuration.DiscordApp = discordApp);
-            
-            ImGui.Separator();
-            ImGui.Text("SBJ Integration");
-            
-            if (!ImGui.BeginTable("sbjIPC", 4, ImGuiTableFlags.SizingStretchProp))
-                return;
-            
-            ImGui.TableSetupColumn("sbjEnabled");
-            ImGui.TableSetupColumn("sbjImg");
-            ImGui.TableSetupColumn("sbjText");
-            ImGui.TableSetupColumn("sbjLocation");
-
-            ImGui.TableNextRow();
-            ImGui.TableSetColumnIndex(0);
-            var isEnabled1 = configuration.SbjEnabled;
-            if (ImGui.Checkbox("##sbj_enabled1", ref isEnabled1))
-                UpdateConfig(() => configuration.SbjEnabled = isEnabled1);
-            ImGui.SameLine(); ImGui.TextDisabled("Enabled");
-            
-            ImGui.TableSetColumnIndex(1);
-            var imgurl = configuration.SbjImg ?? string.Empty;
-            if (ImGui.InputText("##sbj_imgurl", ref imgurl, 512))
-                UpdateConfig(() => configuration.SbjImg = imgurl);
-            ImGui.SameLine(); ImGui.TextDisabled("Image URL");
-
-            ImGui.TableSetColumnIndex(2);
-            var text = configuration.SbjText ?? string.Empty;
-            if (ImGui.InputText("##sbj_text1", ref text, 512))
-                UpdateConfig(() => configuration.SbjText = text);
-            ImGui.SameLine(); ImGui.TextDisabled("Text");
-
-            ImGui.TableSetColumnIndex(3);
-            var location = configuration.SbjLocation ?? string.Empty;
-            if (ImGui.InputText("##sbj_link1", ref location, 512))
-                UpdateConfig(() => configuration.SbjLocation = location);
-            ImGui.SameLine(); ImGui.TextDisabled("Location");
-
-            ImGui.EndTable();
         }
 
         private void UpdateConfig(Action applyChanges)

@@ -4,9 +4,9 @@
     "net10.0-windows7.0": {
       "DalamudPackager": {
         "type": "Direct",
-        "requested": "[14.0.0, )",
-        "resolved": "14.0.0",
-        "contentHash": "9c1q/eAeAs82mkQWBOaCvbt3GIQxAIadz5b/7pCXDIy9nHPtnRc+tDXEvKR+M36Wvi7n+qBTevRupkLUQp6DFA=="
+        "requested": "[14.0.2, )",
+        "resolved": "14.0.2",
+        "contentHash": "dQJeq+8eyHzra4Cg5eZ/3LAeS3/UpvvLriYJGSncMK9LqJ7Q4B6jwcOsxo3PfxVd15xj+IzVFxkPqIBmPQu8/w=="
       },
       "DiscordRichPresence": {
         "type": "Direct",
@@ -25,9 +25,9 @@
       },
       "ECommons": {
         "type": "Direct",
-        "requested": "[3.1.0.2, )",
-        "resolved": "3.1.0.2",
-        "contentHash": "NFVf3G23lRGnZ7xEIFWzXc61LHfLfkyw2NwYc/sYoldehzurPc49Kg4DbVksqSyhEknsTTD0LkpcxPNV16ziUw=="
+        "requested": "[3.1.0.27, )",
+        "resolved": "3.1.0.27",
+        "contentHash": "PkA+aVOf+fHaxxpWM8jZCwBVX3TvNY+rJd7amKYZuVdeF7qpR2jPs0ZYQMejeIY4jUOdRKhaGErqq3ZV9HXZjg=="
       },
       "Newtonsoft.Json": {
         "type": "Direct",
