@@ -32,7 +32,7 @@ namespace BetterDiscordRichPresence
         public string ImageUrl    { get; set; } = string.Empty;
 
         // Discord application ID for rich presence
-        public string DiscordApp { get; set; } = string.Empty;
+        public string DiscordApp { get; set; } = "1398478033429598268";
 
         // Collection of zone-specific image entries
         public List<ZoneImage> ZoneImages { get; set; } = new List<ZoneImage>();

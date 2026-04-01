@@ -27,12 +27,6 @@ namespace BetterDiscordRichPresence.Windows
         {
             if (ImGui.BeginTabBar("SettingsTabs"))
             {
-                if (ImGui.BeginTabItem("General"))
-                {
-                    DrawGeneralSettings();
-                    ImGui.EndTabItem();
-                }
-
                 if (ImGui.BeginTabItem("Buttons"))
                 {
                     DrawButtonSettings();
