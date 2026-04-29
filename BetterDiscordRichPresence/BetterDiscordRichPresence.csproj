@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Dalamud.NET.Sdk/14.0.0">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>1.0.1.2</Version>
+    <Version>1.0.2.0</Version>
     <Description>BetterDiscordRichPresence</Description>
     <PackageProjectUrl>https://github.com/RayaSerahill/BetterDiscordRichpresence</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
@@ -16,12 +16,12 @@
 
     <ItemGroup>
         <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
-        <PackageReference Update="DalamudPackager" Version="14.0.2" />
+        <PackageReference Update="DalamudPackager" Version="15.0.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="ECommons" Version="3.1.0.27" />
+        <PackageReference Include="ECommons" Version="3.2.0.2" />
     </ItemGroup>
     
     <ItemGroup>
