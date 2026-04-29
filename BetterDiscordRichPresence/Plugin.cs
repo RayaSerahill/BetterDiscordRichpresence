@@ -25,6 +25,7 @@ namespace BetterDiscordRichPresence
         [PluginService] private static IClientState ClientState { get; set; } = null!;
         [PluginService] private static IDataManager DataManager { get; set; } = null!;
         [PluginService] private static IFramework Framework { get; set; } = null!;
+        [PluginService] private static IObjectTable ObjectTable { get; set; } = null!;
         [PluginService] internal static IPluginLog Log { get; private set; } = null!;
         [PluginService] private static IPartyList PartyList { get; set; } = null!;
 
@@ -97,7 +98,7 @@ namespace BetterDiscordRichPresence
             UpdateRichPresence();
         }
 
-        private void OnTerritoryChanged(ushort _)
+        private void OnTerritoryChanged(uint _)
         {
             pendingTerritoryUpdate = true;
             territoryUpdateTime = DateTime.UtcNow.AddSeconds(5);
@@ -167,7 +168,7 @@ namespace BetterDiscordRichPresence
             if (!ClientState.IsLoggedIn || discordClient == null || !discordClient.IsInitialized)
                 return;
 
-            var character = ClientState.LocalPlayer;
+            var character = ObjectTable.LocalPlayer;
             if (character == null)
                 return;
 

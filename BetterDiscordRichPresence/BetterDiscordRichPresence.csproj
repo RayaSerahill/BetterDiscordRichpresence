@@ -10,40 +10,12 @@
     <TargetFramework>net10.0-windows</TargetFramework>
   </PropertyGroup>
 
-    <PropertyGroup>
-        <DalamudHooksDir>$(AppData)\XIVLauncher\addon\Hooks\dev</DalamudHooksDir>
-    </PropertyGroup>
-
     <ItemGroup>
         <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
-        <PackageReference Update="DalamudPackager" Version="15.0.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="ECommons" Version="3.2.0.2" />
-    </ItemGroup>
-    
-    <ItemGroup>
-        <Reference Include="Lumina">
-            <HintPath>$(DalamudHooksDir)\Lumina.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="Lumina.Excel">
-            <HintPath>$(DalamudHooksDir)\Lumina.Excel.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="Newtonsoft.Json">
-            <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="Dalamud.Bindings.ImGui">
-            <Private>false</Private>
-            <HintPath>$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll</HintPath>
-        </Reference>
-        <Reference Include="Dalamud.Bindings.ImPlot">
-            <Private>false</Private>
-            <HintPath>$(DalamudLibPath)\Dalamud.Bindings.ImPlot.dll</HintPath>
-        </Reference>
     </ItemGroup>
 </Project>
