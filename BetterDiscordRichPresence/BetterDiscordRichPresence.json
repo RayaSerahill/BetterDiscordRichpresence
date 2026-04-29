@@ -1,12 +1,13 @@
 {
-  "Author": "Raya Espi",
+  "Author": "Raya Serahill",
   "Name": "BetterDiscordRichPresence",
-  "Punchline": "A short one-liner that shows up in /xlplugins.",
-  "Description": "A description that shows up in /xlplugins. List any major slash-command(s).",
+  "Punchline": "Discord!",
+  "Description": "Discord!",
   "ApplicableVersion": "any",
   "Tags": [
-    "sample",
-    "plugin",
-    "goats"
+    "better",
+    "raya",
+    "discord",
+    "serahill"
   ]
 }
