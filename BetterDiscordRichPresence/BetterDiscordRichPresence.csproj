@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Version>1.0.2.2</Version>
     <Description>BetterDiscordRichPresence</Description>
-    <PackageProjectUrl>https://github.com/RayaSerahill/BetterDiscordRichpresence</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/RayaSerahill/BetterDiscordRichPresence</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
     <RootNamespace>BetterDiscordRichPresence</RootNamespace>
