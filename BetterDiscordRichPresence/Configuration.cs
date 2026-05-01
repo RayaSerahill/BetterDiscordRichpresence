@@ -34,6 +34,9 @@ namespace BetterDiscordRichPresence
         // Discord application ID for rich presence
         public string DiscordApp { get; set; } = "1398478033429598268";
 
+        // Starts WineRPCBridge under Wine/Linux so native Discord can receive RPC updates
+        public bool RPCBridgeEnabled { get; set; } = true;
+
         // Collection of zone-specific image entries
         public List<ZoneImage> ZoneImages { get; set; } = new List<ZoneImage>();
 
