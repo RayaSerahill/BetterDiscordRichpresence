@@ -9,6 +9,7 @@ using Dalamud.Game.ClientState;
 using Lumina.Excel;
 using Lumina.Excel.Sheets;
 using DiscordRPC;
+using BetterDiscordRichPresence.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using BetterDiscordRichPresence.Windows;
 using ECommons;
@@ -34,7 +35,7 @@ namespace BetterDiscordRichPresence
         public Configuration Configuration { get; }
         private readonly WindowSystem windowSystem = new("BetterDiscordRichPresence");
         private readonly ConfigWindow configWindow;
-        private DiscordRpcClient? discordClient;
+        private DiscordService? discordService;
         private DateTime startTime;
         private bool pendingTerritoryUpdate;
         private DateTime territoryUpdateTime;
@@ -71,10 +72,10 @@ namespace BetterDiscordRichPresence
             configWindow.Dispose();
             CommandManager.RemoveHandler(CommandName);
 
-            if (discordClient != null)
+            if (discordService != null)
             {
-                discordClient.ClearPresence();
-                discordClient.Dispose();
+                discordService.ClearPresence();
+                discordService.Dispose();
             }
 
             ClientState.TerritoryChanged -= OnTerritoryChanged;
@@ -85,8 +86,8 @@ namespace BetterDiscordRichPresence
 
         private void InitializeDiscord()
         {
-            discordClient = new DiscordRpcClient(Configuration.DiscordApp);
-            discordClient.Initialize();
+            discordService ??= new DiscordService(this);
+            discordService.Initialize();
             startTime = DateTime.UtcNow;
         }
 
@@ -156,16 +157,16 @@ namespace BetterDiscordRichPresence
             lastPartySize = -1;
             lastPartyState = string.Empty;
 
-            if (discordClient?.IsInitialized == true)
-                discordClient.ClearPresence();
+            if (discordService?.IsInitialized == true)
+                discordService.ClearPresence();
         }
 
         internal void UpdateRichPresence()
         {
-            if (discordClient == null || !discordClient.IsInitialized)
+            if (discordService == null || !discordService.IsInitialized)
                 InitializeDiscord();
 
-            if (!ClientState.IsLoggedIn || discordClient == null || !discordClient.IsInitialized)
+            if (!ClientState.IsLoggedIn || discordService == null || !discordService.IsInitialized)
                 return;
 
             var character = ObjectTable.LocalPlayer;
@@ -229,7 +230,7 @@ namespace BetterDiscordRichPresence
                 buttons.Add(new Button { Label = Configuration.Text2, Url = Configuration.Link2 });
             presence.Buttons = buttons.ToArray();
 
-            discordClient.SetPresence(presence);
+            discordService.SetPresence(presence);
         }
 
         private unsafe int GetPartySize()

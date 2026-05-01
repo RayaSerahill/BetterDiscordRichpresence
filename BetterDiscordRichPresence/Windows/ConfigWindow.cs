@@ -27,6 +27,12 @@ namespace BetterDiscordRichPresence.Windows
         {
             if (ImGui.BeginTabBar("SettingsTabs"))
             {
+                if (ImGui.BeginTabItem("General"))
+                {
+                    DrawGeneralSettings();
+                    ImGui.EndTabItem();
+                }
+
                 if (ImGui.BeginTabItem("Buttons"))
                 {
                     DrawButtonSettings();
@@ -162,11 +168,18 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawGeneralSettings()
         {
-            ImGui.Text("Discord Configuration");
+            ImGui.Text("Discord Application ID");
             ImGui.SameLine();
             var discordApp = configuration.DiscordApp ?? string.Empty;
             if (ImGui.InputText("##bd_discord_app", ref discordApp, 512))
                 UpdateConfig(() => configuration.DiscordApp = discordApp);
+
+            ImGui.Spacing();
+            var rpcBridgeEnabled = configuration.RPCBridgeEnabled;
+            if (ImGui.Checkbox("Enable Wine RPC Bridge on Linux/Wine", ref rpcBridgeEnabled))
+                UpdateConfig(() => configuration.RPCBridgeEnabled = rpcBridgeEnabled);
+
+            ImGui.TextDisabled("Needed when XIVLauncher runs through Wine and Discord runs natively on Linux.");
         }
 
         private void UpdateConfig(Action applyChanges)

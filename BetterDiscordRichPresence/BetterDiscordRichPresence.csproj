@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Version>1.0.2.2</Version>
     <Description>BetterDiscordRichPresence</Description>
-    <PackageProjectUrl>https://github.com/RayaSerahill/BetterDiscordRichPresence</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/RayaSerahill/BetterDiscordRichpresence</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     <IsPackable>false</IsPackable>
     <RootNamespace>BetterDiscordRichPresence</RootNamespace>
@@ -17,5 +17,14 @@
 
     <ItemGroup>
         <PackageReference Include="ECommons" Version="3.2.0.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="Resources/binaries/WineRPCBridge.exe">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="Resources/binaries/WineRPCBridgeLICENSE.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 </Project>
