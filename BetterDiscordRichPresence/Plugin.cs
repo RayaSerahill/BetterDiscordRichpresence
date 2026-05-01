@@ -185,6 +185,9 @@ namespace BetterDiscordRichPresence
                 case 1251: //Minimalist Private Mansion 
                     territoryName = "Private Mansion - Minimalist";
                     break;
+                case 1238: //Minimalist Private House 
+                    territoryName = "Private Mansion - Minimalist";
+                    break;
             }
             
             var partySize = GetPartySize();
