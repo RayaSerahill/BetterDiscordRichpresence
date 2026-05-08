@@ -185,7 +185,10 @@ namespace BetterDiscordRichPresence
                 case 1251: //Minimalist Private Mansion 
                     territoryName = "Private Mansion - Minimalist";
                     break;
-                case 1238: //Minimalist Private House 
+                case 1375: //Minimalist Private House Dark 
+                    territoryName = "Private House - Minimalist";
+                    break;
+                case 1376: //Minimalist Private Mansion Dark 
                     territoryName = "Private Mansion - Minimalist";
                     break;
             }
