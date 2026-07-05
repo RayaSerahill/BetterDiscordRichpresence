@@ -37,6 +37,29 @@ namespace BetterDiscordRichPresence
         // Starts WineRPCBridge under Wine/Linux so native Discord can receive RPC updates
         public bool RPCBridgeEnabled { get; set; } = true;
 
+        // Discord widget profile settings
+        public string WidgetBotToken          { get; set; } = string.Empty;
+        public string WidgetUserId            { get; set; } = string.Empty;
+        public string WidgetTitle             { get; set; } = string.Empty;
+        public string WidgetDescription       { get; set; } = string.Empty;
+        public string WidgetDescription2      { get; set; } = string.Empty;
+        public string WidgetDescription3      { get; set; } = string.Empty;
+        public string WidgetMiniProfileText   { get; set; } = string.Empty;
+        public string WidgetMainImageUrl      { get; set; } = string.Empty;
+        public string WidgetProfileIconUrl    { get; set; } = string.Empty;
+        public string WidgetStat1Value        { get; set; } = string.Empty;
+        public string WidgetStat1Label        { get; set; } = string.Empty;
+        public string WidgetStat2Value        { get; set; } = string.Empty;
+        public string WidgetStat2Label        { get; set; } = string.Empty;
+        public string WidgetStat3Value        { get; set; } = string.Empty;
+        public string WidgetStat3Label        { get; set; } = string.Empty;
+        public string WidgetStat4Value        { get; set; } = string.Empty;
+        public string WidgetStat4Label        { get; set; } = string.Empty;
+        public string WidgetStat5Value        { get; set; } = string.Empty;
+        public string WidgetStat5Label        { get; set; } = string.Empty;
+        public string WidgetStat6Value        { get; set; } = string.Empty;
+        public string WidgetStat6Label        { get; set; } = string.Empty;
+
         // Collection of zone-specific image entries
         public List<ZoneImage> ZoneImages { get; set; } = new List<ZoneImage>();
 
