@@ -118,8 +118,8 @@ namespace BetterDiscordRichPresence.Windows
                 DrawWidgetField(
                     "Application ID",
                     "##bd_widget_application_id",
-                    () => configuration.DiscordApp,
-                    value => configuration.DiscordApp = value);
+                    () => configuration.WidgetApplicationId,
+                    value => configuration.WidgetApplicationId = value);
                 DrawWidgetField(
                     "Bot Token",
                     "##bd_widget_bot_token",
@@ -198,7 +198,7 @@ namespace BetterDiscordRichPresence.Windows
         }
 
         private bool AreWidgetFieldsComplete()
-            => HasValue(configuration.DiscordApp)
+            => HasValue(configuration.WidgetApplicationId)
                && HasValue(configuration.WidgetBotToken)
                && HasValue(configuration.WidgetUserId)
                && HasValue(configuration.WidgetTitle)
