@@ -5,11 +5,12 @@ namespace BetterDiscordRichPresence.Services
 {
     internal sealed class WidgetPlaceholderResolver
     {
-        private readonly IReadOnlyDictionary<string, Func<WidgetPlaceholderContext, string>> placeholders =
-            new Dictionary<string, Func<WidgetPlaceholderContext, string>>(StringComparer.Ordinal)
+        private readonly IReadOnlyList<WidgetPlaceholderDefinition> placeholders =
+            new[]
             {
-                ["{FCName}"] = context => context.FreeCompanyName,
-                ["{FCTag}"] = context => context.FreeCompanyTag,
+                new WidgetPlaceholderDefinition("{FCName}", context => context.FreeCompanyName),
+                new WidgetPlaceholderDefinition("{FCTag}", context => context.FreeCompanyTag),
+                new WidgetPlaceholderDefinition("{TTProgress}", context => context.TripleTriadProgress),
             };
 
         public WidgetUpdateRequest Resolve(
@@ -17,13 +18,26 @@ namespace BetterDiscordRichPresence.Services
             WidgetPlaceholderContext context)
             => template.Transform(value => ResolveText(value, context));
 
+        public IReadOnlyList<WidgetPlaceholderValue> GetValues(WidgetPlaceholderContext context)
+        {
+            var values = new List<WidgetPlaceholderValue>(placeholders.Count);
+            foreach (var placeholder in placeholders)
+            {
+                values.Add(new WidgetPlaceholderValue(
+                    placeholder.Token,
+                    placeholder.GetValue(context)));
+            }
+
+            return values;
+        }
+
         private string ResolveText(string value, WidgetPlaceholderContext context)
         {
             foreach (var placeholder in placeholders)
             {
                 value = value.Replace(
-                    placeholder.Key,
-                    placeholder.Value(context),
+                    placeholder.Token,
+                    placeholder.GetValue(context),
                     StringComparison.Ordinal);
             }
 
@@ -31,7 +45,14 @@ namespace BetterDiscordRichPresence.Services
         }
     }
 
+    internal readonly record struct WidgetPlaceholderDefinition(
+        string Token,
+        Func<WidgetPlaceholderContext, string> GetValue);
+
+    internal readonly record struct WidgetPlaceholderValue(string Token, string Value);
+
     internal readonly record struct WidgetPlaceholderContext(
         string FreeCompanyName,
-        string FreeCompanyTag);
+        string FreeCompanyTag,
+        string TripleTriadProgress);
 }

@@ -30,6 +30,7 @@ namespace BetterDiscordRichPresence
         [PluginService] private static IDataManager DataManager { get; set; } = null!;
         [PluginService] private static IFramework Framework { get; set; } = null!;
         [PluginService] private static IObjectTable ObjectTable { get; set; } = null!;
+        [PluginService] private static IUnlockState UnlockState { get; set; } = null!;
         [PluginService] internal static IPluginLog Log { get; private set; } = null!;
         [PluginService] private static IPartyList PartyList { get; set; } = null!;
 
@@ -43,11 +44,14 @@ namespace BetterDiscordRichPresence
         private readonly WidgetPlaceholderResolver widgetPlaceholderResolver = new();
         private readonly CancellationTokenSource disposeTokenSource = new();
         private readonly ConfigWindow configWindow;
+        private readonly PlaceholderWindow placeholderWindow;
         private DiscordService? discordService;
         private DateTime startTime;
         private bool pendingTerritoryUpdate;
         private DateTime territoryUpdateTime;
         private ExcelSheet<TerritoryType>? territories;
+        private ExcelSheet<TripleTriadCard>? tripleTriadCards;
+        private int tripleTriadCardTotal = -1;
 
         private DateTime nextPartyCheckTime = DateTime.MinValue;
         private int lastPartySize = -1;
@@ -61,7 +65,9 @@ namespace BetterDiscordRichPresence
             ECommonsMain.Init(PluginInterface, this, Module.DalamudReflector);
             Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             configWindow = new ConfigWindow(this);
+            placeholderWindow = new PlaceholderWindow(this);
             windowSystem.AddWindow(configWindow);
+            windowSystem.AddWindow(placeholderWindow);
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -82,6 +88,7 @@ namespace BetterDiscordRichPresence
             pendingLoginWidgetUpdate = false;
             windowSystem.RemoveAllWindows();
             configWindow.Dispose();
+            placeholderWindow.Dispose();
             CommandManager.RemoveHandler(CommandName);
 
             if (discordService != null)
@@ -160,6 +167,36 @@ namespace BetterDiscordRichPresence
 
         public void ToggleConfigUI() => configWindow.Toggle();
 
+        internal void OpenPlaceholderWindow() => placeholderWindow.Open();
+
+        internal bool IsCurrentCharacterAllowedForWidget()
+        {
+            var characterFilter = Configuration.WidgetCharacterNameFilter?.Trim();
+            if (string.IsNullOrEmpty(characterFilter))
+                return true;
+
+            var currentCharacterName = ObjectTable.LocalPlayer?.Name.TextValue;
+            return !string.IsNullOrEmpty(currentCharacterName)
+                   && string.Equals(
+                       characterFilter,
+                       currentCharacterName.Trim(),
+                       StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal IReadOnlyList<WidgetPlaceholderValue> GetWidgetPlaceholderValues()
+        {
+            try
+            {
+                return widgetPlaceholderResolver.GetValues(GetWidgetPlaceholderContext());
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to read current widget placeholder values.");
+                return widgetPlaceholderResolver.GetValues(
+                    new WidgetPlaceholderContext(string.Empty, string.Empty, string.Empty));
+            }
+        }
+
         private void OnCommand(string command, string args)
         {
             if (string.IsNullOrWhiteSpace(args))
@@ -186,6 +223,11 @@ namespace BetterDiscordRichPresence
         {
             if (!Configuration.IsWidgetConfigured())
                 return new WidgetUpdateResult(false, "Complete every widget field before updating.");
+
+            if (!IsCurrentCharacterAllowedForWidget())
+                return new WidgetUpdateResult(
+                    false,
+                    "The current character does not match the widget character filter.");
 
             try
             {
@@ -217,6 +259,13 @@ namespace BetterDiscordRichPresence
             if (ObjectTable.LocalPlayer == null && now < loginWidgetUpdateDeadline)
             {
                 loginWidgetUpdateTime = now.AddSeconds(1);
+                return;
+            }
+
+            if (!IsCurrentCharacterAllowedForWidget())
+            {
+                pendingLoginWidgetUpdate = false;
+                Log.Information("Skipped the Discord widget login update because the character filter did not match.");
                 return;
             }
 
@@ -261,7 +310,7 @@ namespace BetterDiscordRichPresence
             }
         }
 
-        private static unsafe WidgetPlaceholderContext GetWidgetPlaceholderContext()
+        private unsafe WidgetPlaceholderContext GetWidgetPlaceholderContext()
         {
             var freeCompanyTag = ObjectTable.LocalPlayer?.CompanyTag.TextValue ?? string.Empty;
             var freeCompanyName = string.Empty;
@@ -277,7 +326,37 @@ namespace BetterDiscordRichPresence
                     freeCompanyName = freeCompany->NameString;
             }
 
-            return new WidgetPlaceholderContext(freeCompanyName, freeCompanyTag);
+            return new WidgetPlaceholderContext(
+                freeCompanyName,
+                freeCompanyTag,
+                GetTripleTriadProgress());
+        }
+
+        private string GetTripleTriadProgress()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            tripleTriadCards ??= DataManager.GetExcelSheet<TripleTriadCard>();
+
+            if (tripleTriadCardTotal < 0)
+            {
+                tripleTriadCardTotal = 0;
+                foreach (var card in tripleTriadCards)
+                {
+                    if (card.RowId != 0)
+                        tripleTriadCardTotal++;
+                }
+            }
+
+            var collected = 0;
+            foreach (var card in tripleTriadCards)
+            {
+                if (card.RowId != 0 && UnlockState.IsTripleTriadCardUnlocked(card))
+                    collected++;
+            }
+
+            return $"{collected}/{tripleTriadCardTotal}";
         }
 
         internal void UpdateRichPresence()

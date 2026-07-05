@@ -38,6 +38,7 @@ namespace BetterDiscordRichPresence
         public bool RPCBridgeEnabled { get; set; } = true;
 
         // Discord widget profile settings
+        public string WidgetCharacterNameFilter { get; set; } = string.Empty;
         public string WidgetApplicationId     { get; set; } = string.Empty;
         public string WidgetBotToken          { get; set; } = string.Empty;
         public string WidgetUserId            { get; set; } = string.Empty;

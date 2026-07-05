@@ -65,7 +65,8 @@ namespace BetterDiscordRichPresence.Windows
         private void DrawWidgetSettings()
         {
             var allFieldsComplete = configuration.IsWidgetConfigured();
-            var canUpdate = allFieldsComplete && widgetUpdateTask == null;
+            var characterAllowed = plugin.IsCurrentCharacterAllowedForWidget();
+            var canUpdate = allFieldsComplete && characterAllowed && widgetUpdateTask == null;
 
             if (!canUpdate)
                 ImGui.BeginDisabled();
@@ -81,12 +82,16 @@ namespace BetterDiscordRichPresence.Windows
                 ImGui.EndDisabled();
 
             ImGui.SameLine();
+            if (ImGui.Button("Placeholders"))
+                plugin.OpenPlaceholderWindow();
+
+            ImGui.SameLine();
             if (widgetUpdateTask != null)
                 ImGui.TextDisabled("Sending request...");
             else if (!allFieldsComplete)
                 ImGui.TextDisabled("Complete every field to enable the update.");
-
-            ImGui.TextDisabled("Available placeholders: {FCName} (free company name), {FCTag} (free company tag)");
+            else if (!characterAllowed)
+                ImGui.TextDisabled("The current character does not match the filter.");
 
             if (!string.IsNullOrEmpty(widgetUpdateStatus))
             {
@@ -103,36 +108,65 @@ namespace BetterDiscordRichPresence.Windows
             }
 
             ImGui.Separator();
-            ImGui.Text("Required Discord information");
 
-            if (ImGui.BeginTable("bd_widget_credentials", 2, ImGuiTableFlags.SizingStretchProp))
-            {
-                ImGui.TableSetupColumn("Field", ImGuiTableColumnFlags.WidthFixed, 160f);
-                ImGui.TableSetupColumn("Value");
+            if (ImGui.CollapsingHeader("Filter", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawWidgetFilter();
 
-                DrawWidgetField(
-                    "Application ID",
-                    "##bd_widget_application_id",
-                    () => configuration.WidgetApplicationId,
-                    value => configuration.WidgetApplicationId = value);
-                DrawWidgetField(
-                    "Bot Token",
-                    "##bd_widget_bot_token",
-                    () => configuration.WidgetBotToken,
-                    value => configuration.WidgetBotToken = value,
-                    ImGuiInputTextFlags.Password);
-                DrawWidgetField(
-                    "User ID",
-                    "##bd_widget_user_id",
-                    () => configuration.WidgetUserId,
-                    value => configuration.WidgetUserId = value);
+            if (ImGui.CollapsingHeader("Bot information", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawWidgetBotInformation();
 
-                ImGui.EndTable();
-            }
+            if (ImGui.CollapsingHeader("Widget content", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawWidgetContent();
+        }
 
-            ImGui.Separator();
-            ImGui.Text("Widget content");
+        private void DrawWidgetFilter()
+        {
+            ImGui.TextWrapped(
+                "Optional. When set, widget updates are only sent while playing the matching character.");
 
+            if (!ImGui.BeginTable("bd_widget_filter", 2, ImGuiTableFlags.SizingStretchProp))
+                return;
+
+            ImGui.TableSetupColumn("Field", ImGuiTableColumnFlags.WidthFixed, 160f);
+            ImGui.TableSetupColumn("Value");
+            DrawWidgetField(
+                "Character Name",
+                "##bd_widget_character_name_filter",
+                () => configuration.WidgetCharacterNameFilter,
+                value => configuration.WidgetCharacterNameFilter = value);
+            ImGui.EndTable();
+        }
+
+        private void DrawWidgetBotInformation()
+        {
+            if (!ImGui.BeginTable("bd_widget_credentials", 2, ImGuiTableFlags.SizingStretchProp))
+                return;
+
+            ImGui.TableSetupColumn("Field", ImGuiTableColumnFlags.WidthFixed, 160f);
+            ImGui.TableSetupColumn("Value");
+
+            DrawWidgetField(
+                "Application ID",
+                "##bd_widget_application_id",
+                () => configuration.WidgetApplicationId,
+                value => configuration.WidgetApplicationId = value);
+            DrawWidgetField(
+                "Bot Token",
+                "##bd_widget_bot_token",
+                () => configuration.WidgetBotToken,
+                value => configuration.WidgetBotToken = value,
+                ImGuiInputTextFlags.Password);
+            DrawWidgetField(
+                "User ID",
+                "##bd_widget_user_id",
+                () => configuration.WidgetUserId,
+                value => configuration.WidgetUserId = value);
+
+            ImGui.EndTable();
+        }
+
+        private void DrawWidgetContent()
+        {
             if (ImGui.BeginTable("bd_widget_content", 2, ImGuiTableFlags.SizingStretchProp))
             {
                 ImGui.TableSetupColumn("Field", ImGuiTableColumnFlags.WidthFixed, 160f);
@@ -149,29 +183,28 @@ namespace BetterDiscordRichPresence.Windows
                 ImGui.EndTable();
             }
 
-            ImGui.Separator();
             ImGui.Text("Stats");
 
-            if (ImGui.BeginTable("bd_widget_stats", 2, ImGuiTableFlags.SizingStretchProp))
-            {
-                ImGui.TableSetupColumn("Field", ImGuiTableColumnFlags.WidthFixed, 160f);
-                ImGui.TableSetupColumn("Value");
+            if (!ImGui.BeginTable("bd_widget_stats", 2, ImGuiTableFlags.SizingStretchProp))
+                return;
 
-                DrawWidgetField("Stat 1 Value", "##bd_widget_stat_1_value", () => configuration.WidgetStat1Value, value => configuration.WidgetStat1Value = value);
-                DrawWidgetField("Stat 1 Label", "##bd_widget_stat_1_label", () => configuration.WidgetStat1Label, value => configuration.WidgetStat1Label = value);
-                DrawWidgetField("Stat 2 Value", "##bd_widget_stat_2_value", () => configuration.WidgetStat2Value, value => configuration.WidgetStat2Value = value);
-                DrawWidgetField("Stat 2 Label", "##bd_widget_stat_2_label", () => configuration.WidgetStat2Label, value => configuration.WidgetStat2Label = value);
-                DrawWidgetField("Stat 3 Value", "##bd_widget_stat_3_value", () => configuration.WidgetStat3Value, value => configuration.WidgetStat3Value = value);
-                DrawWidgetField("Stat 3 Label", "##bd_widget_stat_3_label", () => configuration.WidgetStat3Label, value => configuration.WidgetStat3Label = value);
-                DrawWidgetField("Stat 4 Value", "##bd_widget_stat_4_value", () => configuration.WidgetStat4Value, value => configuration.WidgetStat4Value = value);
-                DrawWidgetField("Stat 4 Label", "##bd_widget_stat_4_label", () => configuration.WidgetStat4Label, value => configuration.WidgetStat4Label = value);
-                DrawWidgetField("Stat 5 Value", "##bd_widget_stat_5_value", () => configuration.WidgetStat5Value, value => configuration.WidgetStat5Value = value);
-                DrawWidgetField("Stat 5 Label", "##bd_widget_stat_5_label", () => configuration.WidgetStat5Label, value => configuration.WidgetStat5Label = value);
-                DrawWidgetField("Stat 6 Value", "##bd_widget_stat_6_value", () => configuration.WidgetStat6Value, value => configuration.WidgetStat6Value = value);
-                DrawWidgetField("Stat 6 Label", "##bd_widget_stat_6_label", () => configuration.WidgetStat6Label, value => configuration.WidgetStat6Label = value);
+            ImGui.TableSetupColumn("Field", ImGuiTableColumnFlags.WidthFixed, 160f);
+            ImGui.TableSetupColumn("Value");
 
-                ImGui.EndTable();
-            }
+            DrawWidgetField("Stat 1 Value", "##bd_widget_stat_1_value", () => configuration.WidgetStat1Value, value => configuration.WidgetStat1Value = value);
+            DrawWidgetField("Stat 1 Label", "##bd_widget_stat_1_label", () => configuration.WidgetStat1Label, value => configuration.WidgetStat1Label = value);
+            DrawWidgetField("Stat 2 Value", "##bd_widget_stat_2_value", () => configuration.WidgetStat2Value, value => configuration.WidgetStat2Value = value);
+            DrawWidgetField("Stat 2 Label", "##bd_widget_stat_2_label", () => configuration.WidgetStat2Label, value => configuration.WidgetStat2Label = value);
+            DrawWidgetField("Stat 3 Value", "##bd_widget_stat_3_value", () => configuration.WidgetStat3Value, value => configuration.WidgetStat3Value = value);
+            DrawWidgetField("Stat 3 Label", "##bd_widget_stat_3_label", () => configuration.WidgetStat3Label, value => configuration.WidgetStat3Label = value);
+            DrawWidgetField("Stat 4 Value", "##bd_widget_stat_4_value", () => configuration.WidgetStat4Value, value => configuration.WidgetStat4Value = value);
+            DrawWidgetField("Stat 4 Label", "##bd_widget_stat_4_label", () => configuration.WidgetStat4Label, value => configuration.WidgetStat4Label = value);
+            DrawWidgetField("Stat 5 Value", "##bd_widget_stat_5_value", () => configuration.WidgetStat5Value, value => configuration.WidgetStat5Value = value);
+            DrawWidgetField("Stat 5 Label", "##bd_widget_stat_5_label", () => configuration.WidgetStat5Label, value => configuration.WidgetStat5Label = value);
+            DrawWidgetField("Stat 6 Value", "##bd_widget_stat_6_value", () => configuration.WidgetStat6Value, value => configuration.WidgetStat6Value = value);
+            DrawWidgetField("Stat 6 Label", "##bd_widget_stat_6_label", () => configuration.WidgetStat6Label, value => configuration.WidgetStat6Label = value);
+
+            ImGui.EndTable();
         }
 
         private void DrawWidgetField(
