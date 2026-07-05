@@ -64,8 +64,35 @@ namespace BetterDiscordRichPresence
         // Collection of zone-specific image entries
         public List<ZoneImage> ZoneImages { get; set; } = new List<ZoneImage>();
 
+        public bool IsWidgetConfigured()
+            => HasValue(WidgetApplicationId)
+               && HasValue(WidgetBotToken)
+               && HasValue(WidgetUserId)
+               && HasValue(WidgetTitle)
+               && HasValue(WidgetDescription)
+               && HasValue(WidgetDescription2)
+               && HasValue(WidgetDescription3)
+               && HasValue(WidgetMiniProfileText)
+               && HasValue(WidgetMainImageUrl)
+               && HasValue(WidgetProfileIconUrl)
+               && HasValue(WidgetStat1Value)
+               && HasValue(WidgetStat1Label)
+               && HasValue(WidgetStat2Value)
+               && HasValue(WidgetStat2Label)
+               && HasValue(WidgetStat3Value)
+               && HasValue(WidgetStat3Label)
+               && HasValue(WidgetStat4Value)
+               && HasValue(WidgetStat4Label)
+               && HasValue(WidgetStat5Value)
+               && HasValue(WidgetStat5Label)
+               && HasValue(WidgetStat6Value)
+               && HasValue(WidgetStat6Label);
+
         // Saves the current configuration to disk
         public void Save()
             => Plugin.PluginInterface.SavePluginConfig(this);
+
+        private static bool HasValue(string? value)
+            => !string.IsNullOrWhiteSpace(value);
     }
 }

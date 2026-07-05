@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Numerics;
-using System.Threading;
 using System.Threading.Tasks;
 using BetterDiscordRichPresence.Services;
 using Dalamud.Interface.Windowing;
@@ -10,9 +9,8 @@ namespace BetterDiscordRichPresence.Windows
 {
     public class ConfigWindow : Window, IDisposable
     {
+        private readonly Plugin plugin;
         private readonly Configuration configuration;
-        private readonly WidgetService widgetService = new();
-        private readonly CancellationTokenSource disposeTokenSource = new();
         private Task<WidgetUpdateResult>? widgetUpdateTask;
         private string widgetUpdateStatus = string.Empty;
         private bool? widgetUpdateSucceeded;
@@ -24,15 +22,11 @@ namespace BetterDiscordRichPresence.Windows
             Size = new Vector2(700, 650);
             SizeCondition = ImGuiCond.FirstUseEver;
 
+            this.plugin = plugin;
             configuration = plugin.Configuration;
         }
 
-        public void Dispose()
-        {
-            disposeTokenSource.Cancel();
-            disposeTokenSource.Dispose();
-            widgetService.Dispose();
-        }
+        public void Dispose() { }
 
         public override void Draw()
         {
@@ -70,7 +64,7 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawWidgetSettings()
         {
-            var allFieldsComplete = AreWidgetFieldsComplete();
+            var allFieldsComplete = configuration.IsWidgetConfigured();
             var canUpdate = allFieldsComplete && widgetUpdateTask == null;
 
             if (!canUpdate)
@@ -80,8 +74,7 @@ namespace BetterDiscordRichPresence.Windows
             {
                 widgetUpdateStatus = "Updating widget...";
                 widgetUpdateSucceeded = null;
-                var request = WidgetUpdateRequest.FromConfiguration(configuration);
-                widgetUpdateTask = widgetService.UpdateAsync(request, disposeTokenSource.Token);
+                widgetUpdateTask = plugin.UpdateWidgetAsync();
             }
 
             if (!canUpdate)
@@ -92,6 +85,8 @@ namespace BetterDiscordRichPresence.Windows
                 ImGui.TextDisabled("Sending request...");
             else if (!allFieldsComplete)
                 ImGui.TextDisabled("Complete every field to enable the update.");
+
+            ImGui.TextDisabled("Available placeholders: {FCName} (free company name), {FCTag} (free company tag)");
 
             if (!string.IsNullOrEmpty(widgetUpdateStatus))
             {
@@ -197,30 +192,6 @@ namespace BetterDiscordRichPresence.Windows
                 UpdateConfig(() => setValue(value));
         }
 
-        private bool AreWidgetFieldsComplete()
-            => HasValue(configuration.WidgetApplicationId)
-               && HasValue(configuration.WidgetBotToken)
-               && HasValue(configuration.WidgetUserId)
-               && HasValue(configuration.WidgetTitle)
-               && HasValue(configuration.WidgetDescription)
-               && HasValue(configuration.WidgetDescription2)
-               && HasValue(configuration.WidgetDescription3)
-               && HasValue(configuration.WidgetMiniProfileText)
-               && HasValue(configuration.WidgetMainImageUrl)
-               && HasValue(configuration.WidgetProfileIconUrl)
-               && HasValue(configuration.WidgetStat1Value)
-               && HasValue(configuration.WidgetStat1Label)
-               && HasValue(configuration.WidgetStat2Value)
-               && HasValue(configuration.WidgetStat2Label)
-               && HasValue(configuration.WidgetStat3Value)
-               && HasValue(configuration.WidgetStat3Label)
-               && HasValue(configuration.WidgetStat4Value)
-               && HasValue(configuration.WidgetStat4Label)
-               && HasValue(configuration.WidgetStat5Value)
-               && HasValue(configuration.WidgetStat5Label)
-               && HasValue(configuration.WidgetStat6Value)
-               && HasValue(configuration.WidgetStat6Label);
-
         private void PollWidgetUpdate()
         {
             if (widgetUpdateTask is not { IsCompleted: true })
@@ -243,9 +214,6 @@ namespace BetterDiscordRichPresence.Windows
                 widgetUpdateTask = null;
             }
         }
-
-        private static bool HasValue(string? value)
-            => !string.IsNullOrWhiteSpace(value);
 
         private void DrawButtonSettings()
         {

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Dalamud.Game.Command;
 using Dalamud.IoC;
 using Dalamud.Interface.Windowing;
@@ -11,6 +13,7 @@ using Lumina.Excel.Sheets;
 using DiscordRPC;
 using BetterDiscordRichPresence.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Group;
+using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using BetterDiscordRichPresence.Windows;
 using ECommons;
 using ECommons.GameFunctions;
@@ -31,9 +34,14 @@ namespace BetterDiscordRichPresence
         [PluginService] private static IPartyList PartyList { get; set; } = null!;
 
         private const string CommandName = "/drp";
+        private static readonly TimeSpan WidgetLoginUpdateDelay = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan WidgetLoginUpdateTimeout = TimeSpan.FromSeconds(15);
 
         public Configuration Configuration { get; }
         private readonly WindowSystem windowSystem = new("BetterDiscordRichPresence");
+        private readonly WidgetService widgetService = new();
+        private readonly WidgetPlaceholderResolver widgetPlaceholderResolver = new();
+        private readonly CancellationTokenSource disposeTokenSource = new();
         private readonly ConfigWindow configWindow;
         private DiscordService? discordService;
         private DateTime startTime;
@@ -44,6 +52,9 @@ namespace BetterDiscordRichPresence
         private DateTime nextPartyCheckTime = DateTime.MinValue;
         private int lastPartySize = -1;
         private string lastPartyState = string.Empty;
+        private bool pendingLoginWidgetUpdate;
+        private DateTime loginWidgetUpdateTime;
+        private DateTime loginWidgetUpdateDeadline;
 
         public Plugin()
         {
@@ -68,6 +79,7 @@ namespace BetterDiscordRichPresence
 
         public void Dispose()
         {
+            pendingLoginWidgetUpdate = false;
             windowSystem.RemoveAllWindows();
             configWindow.Dispose();
             CommandManager.RemoveHandler(CommandName);
@@ -82,6 +94,10 @@ namespace BetterDiscordRichPresence
             ClientState.Login -= OnLogin;
             ClientState.Logout -= OnLogout;
             Framework.Update -= OnFrameworkUpdate;
+
+            disposeTokenSource.Cancel();
+            widgetService.Dispose();
+            disposeTokenSource.Dispose();
         }
 
         private void InitializeDiscord()
@@ -96,6 +112,9 @@ namespace BetterDiscordRichPresence
             startTime = DateTime.UtcNow;
             lastPartySize = -1;
             lastPartyState = string.Empty;
+            pendingLoginWidgetUpdate = true;
+            loginWidgetUpdateTime = DateTime.UtcNow.Add(WidgetLoginUpdateDelay);
+            loginWidgetUpdateDeadline = DateTime.UtcNow.Add(WidgetLoginUpdateTimeout);
             UpdateRichPresence();
         }
 
@@ -115,6 +134,7 @@ namespace BetterDiscordRichPresence
                 return;
 
             nextPartyCheckTime = DateTime.UtcNow.AddSeconds(1);
+            TrySendLoginWidgetUpdate();
 
             var partySize = GetPartySize();
             var partyState = GetPartyStateSignature();
@@ -154,11 +174,110 @@ namespace BetterDiscordRichPresence
 
         private void OnLogout(int type, int code)
         {
+            pendingLoginWidgetUpdate = false;
             lastPartySize = -1;
             lastPartyState = string.Empty;
 
             if (discordService?.IsInitialized == true)
                 discordService.ClearPresence();
+        }
+
+        internal async Task<WidgetUpdateResult> UpdateWidgetAsync()
+        {
+            if (!Configuration.IsWidgetConfigured())
+                return new WidgetUpdateResult(false, "Complete every widget field before updating.");
+
+            try
+            {
+                var template = WidgetUpdateRequest.FromConfiguration(Configuration);
+                var context = GetWidgetPlaceholderContext();
+                var request = widgetPlaceholderResolver.Resolve(template, context);
+                return await widgetService.UpdateAsync(request, disposeTokenSource.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to prepare the Discord widget update.");
+                return new WidgetUpdateResult(false, $"Widget update failed: {ex.Message}");
+            }
+        }
+
+        private void TrySendLoginWidgetUpdate()
+        {
+            var now = DateTime.UtcNow;
+            if (!pendingLoginWidgetUpdate || now < loginWidgetUpdateTime)
+                return;
+
+            if (!Configuration.IsWidgetConfigured())
+            {
+                pendingLoginWidgetUpdate = false;
+                return;
+            }
+
+            if (ObjectTable.LocalPlayer == null && now < loginWidgetUpdateDeadline)
+            {
+                loginWidgetUpdateTime = now.AddSeconds(1);
+                return;
+            }
+
+            try
+            {
+                var context = GetWidgetPlaceholderContext();
+                if (!string.IsNullOrEmpty(context.FreeCompanyTag)
+                    && string.IsNullOrEmpty(context.FreeCompanyName)
+                    && now < loginWidgetUpdateDeadline)
+                {
+                    loginWidgetUpdateTime = now.AddSeconds(1);
+                    return;
+                }
+
+                pendingLoginWidgetUpdate = false;
+                _ = SendLoginWidgetUpdateAsync(context);
+            }
+            catch (Exception ex)
+            {
+                pendingLoginWidgetUpdate = false;
+                Log.Error(ex, "Failed to read widget placeholder data after character login.");
+            }
+        }
+
+        private async Task SendLoginWidgetUpdateAsync(WidgetPlaceholderContext context)
+        {
+            try
+            {
+                var template = WidgetUpdateRequest.FromConfiguration(Configuration);
+                var request = widgetPlaceholderResolver.Resolve(template, context);
+                var result = await widgetService.UpdateAsync(request, disposeTokenSource.Token)
+                    .ConfigureAwait(false);
+
+                if (result.Success)
+                    Log.Information("Updated the Discord widget after character login.");
+                else
+                    Log.Warning($"Discord widget login update failed: {result.Message}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update the Discord widget after character login.");
+            }
+        }
+
+        private static unsafe WidgetPlaceholderContext GetWidgetPlaceholderContext()
+        {
+            var freeCompanyTag = ObjectTable.LocalPlayer?.CompanyTag.TextValue ?? string.Empty;
+            var freeCompanyName = string.Empty;
+
+            if (!string.IsNullOrEmpty(freeCompanyTag))
+            {
+                var infoModule = InfoModule.Instance();
+                var freeCompany = infoModule == null
+                    ? null
+                    : (InfoProxyFreeCompany*)infoModule->GetInfoProxyById(InfoProxyId.FreeCompany);
+
+                if (freeCompany != null)
+                    freeCompanyName = freeCompany->NameString;
+            }
+
+            return new WidgetPlaceholderContext(freeCompanyName, freeCompanyTag);
         }
 
         internal void UpdateRichPresence()
