@@ -20,7 +20,6 @@ namespace BetterDiscordRichPresence.Windows
         public ConfigWindow(Plugin plugin)
             : base("BetterDiscordRichPresence Settings###BDRP_Config")
         {
-            Flags = ImGuiWindowFlags.NoCollapse;
             Size = new Vector2(700, 650);
             SizeCondition = ImGuiCond.FirstUseEver;
 
@@ -72,6 +71,8 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawWidgetSettings()
         {
+            ImGui.Spacing();
+
             var allFieldsComplete = configuration.IsWidgetConfigured();
             var characterAllowed = plugin.IsCurrentCharacterAllowedForWidget();
             var canUpdate = allFieldsComplete && characterAllowed && widgetUpdateTask == null;
@@ -79,7 +80,7 @@ namespace BetterDiscordRichPresence.Windows
             if (!canUpdate)
                 ImGui.BeginDisabled();
 
-            if (ImGui.Button("update widget"))
+            if (ImGui.Button("Update widget"))
             {
                 widgetUpdateStatus = "Updating widget...";
                 widgetUpdateSucceeded = null;
@@ -92,6 +93,10 @@ namespace BetterDiscordRichPresence.Windows
             ImGui.SameLine();
             if (ImGui.Button("Placeholders"))
                 plugin.OpenPlaceholderWindow();
+
+            ImGui.SameLine();
+            if (ImGui.Button("Setup guide"))
+                plugin.OpenGuideWindow();
 
             ImGui.SameLine();
             if (widgetUpdateTask != null)
