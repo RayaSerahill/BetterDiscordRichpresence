@@ -45,6 +45,7 @@ namespace BetterDiscordRichPresence
         private readonly CancellationTokenSource disposeTokenSource = new();
         private readonly ConfigWindow configWindow;
         private readonly PlaceholderWindow placeholderWindow;
+        private readonly GuideWindow guideWindow;
         private DiscordService? discordService;
         private DateTime startTime;
         private bool pendingTerritoryUpdate;
@@ -66,8 +67,10 @@ namespace BetterDiscordRichPresence
             Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             configWindow = new ConfigWindow(this);
             placeholderWindow = new PlaceholderWindow(this);
+            guideWindow = new GuideWindow();
             windowSystem.AddWindow(configWindow);
             windowSystem.AddWindow(placeholderWindow);
+            windowSystem.AddWindow(guideWindow);
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
@@ -89,6 +92,7 @@ namespace BetterDiscordRichPresence
             windowSystem.RemoveAllWindows();
             configWindow.Dispose();
             placeholderWindow.Dispose();
+            guideWindow.Dispose();
             CommandManager.RemoveHandler(CommandName);
 
             if (discordService != null)
@@ -168,6 +172,8 @@ namespace BetterDiscordRichPresence
         public void ToggleConfigUI() => configWindow.Toggle();
 
         internal void OpenPlaceholderWindow() => placeholderWindow.Open();
+
+        internal void OpenGuideWindow() => guideWindow.Open();
 
         internal bool IsCurrentCharacterAllowedForWidget()
         {

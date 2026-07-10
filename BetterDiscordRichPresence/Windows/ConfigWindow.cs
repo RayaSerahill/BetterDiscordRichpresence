@@ -96,6 +96,10 @@ namespace BetterDiscordRichPresence.Windows
                 plugin.OpenPlaceholderWindow();
 
             ImGui.SameLine();
+            if (ImGui.Button("Setup guide"))
+                plugin.OpenGuideWindow();
+
+            ImGui.SameLine();
             if (widgetUpdateTask != null)
                 ImGui.TextDisabled("Sending request...");
             else if (!allFieldsComplete)
