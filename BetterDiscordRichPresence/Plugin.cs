@@ -325,18 +325,21 @@ namespace BetterDiscordRichPresence
 
         private unsafe WidgetPlaceholderContext GetWidgetPlaceholderContext()
         {
-            var freeCompanyTag = ObjectTable.LocalPlayer?.CompanyTag.TextValue ?? string.Empty;
-            var freeCompanyName = string.Empty;
+            var character = ObjectTable.LocalPlayer;
+            var freeCompanyTag = character?.CompanyTag.TextValue ?? string.Empty;
+            var freeCompanyName = ReadFreeCompanyName(freeCompanyTag);
 
-            if (!string.IsNullOrEmpty(freeCompanyTag))
+            if (character != null)
             {
-                var infoModule = InfoModule.Instance();
-                var freeCompany = infoModule == null
-                    ? null
-                    : (InfoProxyFreeCompany*)infoModule->GetInfoProxyById(InfoProxyId.FreeCompany);
+                var freeCompanyValues = ResolveWidgetFreeCompanyValues(
+                    character.Name.TextValue,
+                    character.HomeWorld.RowId,
+                    character.CurrentWorld.RowId,
+                    freeCompanyName,
+                    freeCompanyTag);
 
-                if (freeCompany != null)
-                    freeCompanyName = freeCompany->NameString;
+                freeCompanyName = freeCompanyValues.FreeCompanyName;
+                freeCompanyTag = freeCompanyValues.FreeCompanyTag;
             }
 
             return new WidgetPlaceholderContext(
@@ -344,6 +347,97 @@ namespace BetterDiscordRichPresence
                 freeCompanyTag,
                 GetTripleTriadProgress());
         }
+
+        private unsafe string ReadFreeCompanyName(string freeCompanyTag)
+        {
+            if (string.IsNullOrEmpty(freeCompanyTag))
+                return string.Empty;
+
+            var infoModule = InfoModule.Instance();
+            var freeCompany = infoModule == null
+                ? null
+                : (InfoProxyFreeCompany*)infoModule->GetInfoProxyById(InfoProxyId.FreeCompany);
+
+            return freeCompany == null
+                ? string.Empty
+                : freeCompany->NameString;
+        }
+
+        private (string FreeCompanyName, string FreeCompanyTag) ResolveWidgetFreeCompanyValues(
+            string characterName,
+            uint homeWorldId,
+            uint currentWorldId,
+            string currentFreeCompanyName,
+            string currentFreeCompanyTag)
+        {
+            characterName = characterName.Trim();
+            if (string.IsNullOrWhiteSpace(characterName) || homeWorldId == 0 || currentWorldId == 0)
+                return (currentFreeCompanyName, currentFreeCompanyTag);
+
+            if (currentWorldId != homeWorldId)
+            {
+                var cached = FindWidgetFreeCompanyCache(characterName, homeWorldId);
+                return cached == null
+                    ? (currentFreeCompanyName, currentFreeCompanyTag)
+                    : (cached.FreeCompanyName, cached.FreeCompanyTag);
+            }
+
+            UpdateWidgetFreeCompanyCache(
+                characterName,
+                homeWorldId,
+                currentFreeCompanyName,
+                currentFreeCompanyTag);
+
+            return (currentFreeCompanyName, currentFreeCompanyTag);
+        }
+
+        private WidgetFreeCompanyCacheEntry? FindWidgetFreeCompanyCache(string characterName, uint homeWorldId)
+        {
+            Configuration.WidgetFreeCompanyCache ??= new List<WidgetFreeCompanyCacheEntry>();
+
+            foreach (var entry in Configuration.WidgetFreeCompanyCache)
+            {
+                if (entry.HomeWorldId == homeWorldId
+                    && string.Equals(entry.CharacterName, characterName, StringComparison.OrdinalIgnoreCase))
+                    return entry;
+            }
+
+            return null;
+        }
+
+        private void UpdateWidgetFreeCompanyCache(
+            string characterName,
+            uint homeWorldId,
+            string freeCompanyName,
+            string freeCompanyTag)
+        {
+            if (!CanCacheWidgetFreeCompany(freeCompanyName, freeCompanyTag))
+                return;
+
+            var entry = FindWidgetFreeCompanyCache(characterName, homeWorldId);
+            if (entry == null)
+            {
+                Configuration.WidgetFreeCompanyCache.Add(new WidgetFreeCompanyCacheEntry
+                {
+                    CharacterName = characterName,
+                    HomeWorldId = homeWorldId,
+                    FreeCompanyName = freeCompanyName,
+                    FreeCompanyTag = freeCompanyTag,
+                });
+                Configuration.Save();
+                return;
+            }
+
+            if (entry.FreeCompanyName == freeCompanyName && entry.FreeCompanyTag == freeCompanyTag)
+                return;
+
+            entry.FreeCompanyName = freeCompanyName;
+            entry.FreeCompanyTag = freeCompanyTag;
+            Configuration.Save();
+        }
+
+        private static bool CanCacheWidgetFreeCompany(string freeCompanyName, string freeCompanyTag)
+            => string.IsNullOrEmpty(freeCompanyTag) || !string.IsNullOrEmpty(freeCompanyName);
 
         private string GetTripleTriadProgress()
         {
