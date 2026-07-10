@@ -13,6 +13,14 @@ namespace BetterDiscordRichPresence
         public string ImageUrl { get; set; } = string.Empty;
     }
 
+    public class WidgetFreeCompanyCacheEntry
+    {
+        public string CharacterName { get; set; } = string.Empty;
+        public uint HomeWorldId { get; set; }
+        public string FreeCompanyName { get; set; } = string.Empty;
+        public string FreeCompanyTag { get; set; } = string.Empty;
+    }
+
     // Plugin configuration storage
     public class Configuration : IPluginConfiguration
     {
@@ -67,6 +75,7 @@ namespace BetterDiscordRichPresence
         public string WidgetStat5Label        { get; set; } = string.Empty;
         public string WidgetStat6Value        { get; set; } = string.Empty;
         public string WidgetStat6Label        { get; set; } = string.Empty;
+        public List<WidgetFreeCompanyCacheEntry> WidgetFreeCompanyCache { get; set; } = new List<WidgetFreeCompanyCacheEntry>();
 
         // Collection of zone-specific image entries
         public List<ZoneImage> ZoneImages { get; set; } = new List<ZoneImage>();

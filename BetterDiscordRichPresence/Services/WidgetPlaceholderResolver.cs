@@ -11,6 +11,16 @@ namespace BetterDiscordRichPresence.Services
                 new WidgetPlaceholderDefinition("{FCName}", context => context.FreeCompanyName),
                 new WidgetPlaceholderDefinition("{FCTag}", context => context.FreeCompanyTag),
                 new WidgetPlaceholderDefinition("{TTProgress}", context => context.TripleTriadProgress),
+                new WidgetPlaceholderDefinition("{MountsCollected}", context => context.MountsCollected),
+                new WidgetPlaceholderDefinition("{MinionsCollected}", context => context.MinionsCollected),
+                new WidgetPlaceholderDefinition("{CharacterName}", context => context.CharacterName),
+                new WidgetPlaceholderDefinition("{CurrentWorld}", context => context.CurrentWorld),
+                new WidgetPlaceholderDefinition("{HomeWorld}", context => context.HomeWorld),
+                new WidgetPlaceholderDefinition("{Location}", context => context.Location),
+                new WidgetPlaceholderDefinition("{Job}", context => context.Job),
+                new WidgetPlaceholderDefinition("{JobAbbreviation}", context => context.JobAbbreviation),
+                new WidgetPlaceholderDefinition("{Level}", context => context.Level),
+                new WidgetPlaceholderDefinition("{PartySize}", context => context.PartySize),
             };
 
         public WidgetUpdateRequest Resolve(
@@ -54,5 +64,15 @@ namespace BetterDiscordRichPresence.Services
     internal readonly record struct WidgetPlaceholderContext(
         string FreeCompanyName,
         string FreeCompanyTag,
-        string TripleTriadProgress);
+        string TripleTriadProgress,
+        string MountsCollected,
+        string MinionsCollected,
+        string CharacterName,
+        string CurrentWorld,
+        string HomeWorld,
+        string Location,
+        string Job,
+        string JobAbbreviation,
+        string Level,
+        string PartySize);
 }

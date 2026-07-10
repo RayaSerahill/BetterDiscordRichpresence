@@ -37,6 +37,7 @@ namespace BetterDiscordRichPresence
         private const string CommandName = "/drp";
         private static readonly TimeSpan WidgetLoginUpdateDelay = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan WidgetLoginUpdateTimeout = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan WidgetAutomaticUpdateInterval = TimeSpan.FromMinutes(5);
 
         public Configuration Configuration { get; }
         private readonly WindowSystem windowSystem = new("BetterDiscordRichPresence");
@@ -53,7 +54,11 @@ namespace BetterDiscordRichPresence
         private DateTime territoryUpdateTime;
         private ExcelSheet<TerritoryType>? territories;
         private ExcelSheet<TripleTriadCard>? tripleTriadCards;
+        private ExcelSheet<Mount>? mounts;
+        private ExcelSheet<Companion>? companions;
         private int tripleTriadCardTotal = -1;
+        private int mountTotal = -1;
+        private int companionTotal = -1;
 
         private DateTime nextPartyCheckTime = DateTime.MinValue;
         private int lastPartySize = -1;
@@ -61,6 +66,8 @@ namespace BetterDiscordRichPresence
         private bool pendingLoginWidgetUpdate;
         private DateTime loginWidgetUpdateTime;
         private DateTime loginWidgetUpdateDeadline;
+        private DateTime nextAutomaticWidgetUpdateTime = DateTime.UtcNow.Add(WidgetAutomaticUpdateInterval);
+        private Task? automaticWidgetUpdateTask;
 
         public Plugin()
         {
@@ -127,6 +134,7 @@ namespace BetterDiscordRichPresence
             pendingLoginWidgetUpdate = true;
             loginWidgetUpdateTime = DateTime.UtcNow.Add(WidgetLoginUpdateDelay);
             loginWidgetUpdateDeadline = DateTime.UtcNow.Add(WidgetLoginUpdateTimeout);
+            ResetAutomaticWidgetUpdateTimer();
             UpdateRichPresence();
         }
 
@@ -147,6 +155,7 @@ namespace BetterDiscordRichPresence
 
             nextPartyCheckTime = DateTime.UtcNow.AddSeconds(1);
             TrySendLoginWidgetUpdate();
+            TrySendAutomaticWidgetUpdate();
 
             var partySize = GetPartySize();
             var partyState = GetPartyStateSignature();
@@ -200,7 +209,20 @@ namespace BetterDiscordRichPresence
             {
                 Log.Error(ex, "Failed to read current widget placeholder values.");
                 return widgetPlaceholderResolver.GetValues(
-                    new WidgetPlaceholderContext(string.Empty, string.Empty, string.Empty));
+                    new WidgetPlaceholderContext(
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty));
             }
         }
 
@@ -234,6 +256,32 @@ namespace BetterDiscordRichPresence
 
         internal async Task<WidgetUpdateResult> UpdateWidgetAsync()
         {
+            ResetAutomaticWidgetUpdateTimer();
+            return await SendWidgetUpdateAsync().ConfigureAwait(false);
+        }
+
+        internal void ResetAutomaticWidgetUpdateTimer()
+            => nextAutomaticWidgetUpdateTime = DateTime.UtcNow.Add(WidgetAutomaticUpdateInterval);
+
+        internal WidgetAutomaticUpdateDebugInfo GetAutomaticWidgetUpdateDebugInfo()
+        {
+            var now = DateTime.UtcNow;
+            var remaining = nextAutomaticWidgetUpdateTime <= now
+                ? TimeSpan.Zero
+                : nextAutomaticWidgetUpdateTime - now;
+
+            return new WidgetAutomaticUpdateDebugInfo(
+                WidgetAutomaticUpdateInterval,
+                nextAutomaticWidgetUpdateTime,
+                remaining,
+                automaticWidgetUpdateTask is { IsCompleted: false },
+                ClientState.IsLoggedIn,
+                Configuration.IsWidgetConfigured(),
+                IsCurrentCharacterAllowedForWidget());
+        }
+
+        private async Task<WidgetUpdateResult> SendWidgetUpdateAsync()
+        {
             if (!Configuration.IsWidgetConfigured())
                 return new WidgetUpdateResult(false, "Complete every widget field before updating.");
 
@@ -254,6 +302,48 @@ namespace BetterDiscordRichPresence
             {
                 Log.Error(ex, "Failed to prepare the Discord widget update.");
                 return new WidgetUpdateResult(false, $"Widget update failed: {ex.Message}");
+            }
+        }
+
+        private void TrySendAutomaticWidgetUpdate()
+        {
+            if (automaticWidgetUpdateTask is { IsCompleted: false })
+                return;
+
+            automaticWidgetUpdateTask = null;
+
+            var now = DateTime.UtcNow;
+            if (now < nextAutomaticWidgetUpdateTime)
+                return;
+
+            ResetAutomaticWidgetUpdateTimer();
+
+            if (!Configuration.IsWidgetConfigured())
+                return;
+
+            if (!IsCurrentCharacterAllowedForWidget())
+            {
+                Log.Information("Skipped the Discord widget automatic update because the character filter did not match.");
+                return;
+            }
+
+            automaticWidgetUpdateTask = SendAutomaticWidgetUpdateAsync();
+        }
+
+        private async Task SendAutomaticWidgetUpdateAsync()
+        {
+            try
+            {
+                var result = await SendWidgetUpdateAsync().ConfigureAwait(false);
+
+                if (result.Success)
+                    Log.Information("Updated the Discord widget automatically.");
+                else
+                    Log.Warning($"Discord widget automatic update failed: {result.Message}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update the Discord widget automatically.");
             }
         }
 
@@ -325,24 +415,173 @@ namespace BetterDiscordRichPresence
 
         private unsafe WidgetPlaceholderContext GetWidgetPlaceholderContext()
         {
-            var freeCompanyTag = ObjectTable.LocalPlayer?.CompanyTag.TextValue ?? string.Empty;
-            var freeCompanyName = string.Empty;
+            var character = ObjectTable.LocalPlayer;
+            var freeCompanyTag = character?.CompanyTag.TextValue ?? string.Empty;
+            var freeCompanyName = ReadFreeCompanyName(freeCompanyTag);
+            var characterName = character?.Name.TextValue ?? string.Empty;
+            var currentWorld = string.Empty;
+            var homeWorld = string.Empty;
+            var job = string.Empty;
+            var jobAbbreviation = string.Empty;
+            var level = string.Empty;
 
-            if (!string.IsNullOrEmpty(freeCompanyTag))
+            if (character != null)
             {
-                var infoModule = InfoModule.Instance();
-                var freeCompany = infoModule == null
-                    ? null
-                    : (InfoProxyFreeCompany*)infoModule->GetInfoProxyById(InfoProxyId.FreeCompany);
+                var freeCompanyValues = ResolveWidgetFreeCompanyValues(
+                    characterName,
+                    character.HomeWorld.RowId,
+                    character.CurrentWorld.RowId,
+                    freeCompanyName,
+                    freeCompanyTag);
 
-                if (freeCompany != null)
-                    freeCompanyName = freeCompany->NameString;
+                freeCompanyName = freeCompanyValues.FreeCompanyName;
+                freeCompanyTag = freeCompanyValues.FreeCompanyTag;
+                currentWorld = character.CurrentWorld.Value.Name.ToString();
+                homeWorld = character.HomeWorld.Value.Name.ToString();
+                job = character.ClassJob.Value.Name.ToString();
+                jobAbbreviation = character.ClassJob.Value.Abbreviation.ToString();
+                level = character.Level.ToString();
             }
 
             return new WidgetPlaceholderContext(
                 freeCompanyName,
                 freeCompanyTag,
-                GetTripleTriadProgress());
+                GetTripleTriadProgress(),
+                GetMountsCollected(),
+                GetMinionsCollected(),
+                characterName,
+                currentWorld,
+                homeWorld,
+                GetCurrentLocationName(),
+                job,
+                jobAbbreviation,
+                level,
+                GetWidgetPartySize());
+        }
+
+        private unsafe string ReadFreeCompanyName(string freeCompanyTag)
+        {
+            if (string.IsNullOrEmpty(freeCompanyTag))
+                return string.Empty;
+
+            var infoModule = InfoModule.Instance();
+            var freeCompany = infoModule == null
+                ? null
+                : (InfoProxyFreeCompany*)infoModule->GetInfoProxyById(InfoProxyId.FreeCompany);
+
+            return freeCompany == null
+                ? string.Empty
+                : freeCompany->NameString;
+        }
+
+        private (string FreeCompanyName, string FreeCompanyTag) ResolveWidgetFreeCompanyValues(
+            string characterName,
+            uint homeWorldId,
+            uint currentWorldId,
+            string currentFreeCompanyName,
+            string currentFreeCompanyTag)
+        {
+            characterName = characterName.Trim();
+            if (string.IsNullOrWhiteSpace(characterName) || homeWorldId == 0 || currentWorldId == 0)
+                return (currentFreeCompanyName, currentFreeCompanyTag);
+
+            if (currentWorldId != homeWorldId)
+            {
+                var cached = FindWidgetFreeCompanyCache(characterName, homeWorldId);
+                return cached == null
+                    ? (currentFreeCompanyName, currentFreeCompanyTag)
+                    : (cached.FreeCompanyName, cached.FreeCompanyTag);
+            }
+
+            UpdateWidgetFreeCompanyCache(
+                characterName,
+                homeWorldId,
+                currentFreeCompanyName,
+                currentFreeCompanyTag);
+
+            return (currentFreeCompanyName, currentFreeCompanyTag);
+        }
+
+        private WidgetFreeCompanyCacheEntry? FindWidgetFreeCompanyCache(string characterName, uint homeWorldId)
+        {
+            Configuration.WidgetFreeCompanyCache ??= new List<WidgetFreeCompanyCacheEntry>();
+
+            foreach (var entry in Configuration.WidgetFreeCompanyCache)
+            {
+                if (entry.HomeWorldId == homeWorldId
+                    && string.Equals(entry.CharacterName, characterName, StringComparison.OrdinalIgnoreCase))
+                    return entry;
+            }
+
+            return null;
+        }
+
+        private void UpdateWidgetFreeCompanyCache(
+            string characterName,
+            uint homeWorldId,
+            string freeCompanyName,
+            string freeCompanyTag)
+        {
+            if (!CanCacheWidgetFreeCompany(freeCompanyName, freeCompanyTag))
+                return;
+
+            var entry = FindWidgetFreeCompanyCache(characterName, homeWorldId);
+            if (entry == null)
+            {
+                Configuration.WidgetFreeCompanyCache.Add(new WidgetFreeCompanyCacheEntry
+                {
+                    CharacterName = characterName,
+                    HomeWorldId = homeWorldId,
+                    FreeCompanyName = freeCompanyName,
+                    FreeCompanyTag = freeCompanyTag,
+                });
+                Configuration.Save();
+                return;
+            }
+
+            if (entry.FreeCompanyName == freeCompanyName && entry.FreeCompanyTag == freeCompanyTag)
+                return;
+
+            entry.FreeCompanyName = freeCompanyName;
+            entry.FreeCompanyTag = freeCompanyTag;
+            Configuration.Save();
+        }
+
+        private static bool CanCacheWidgetFreeCompany(string freeCompanyName, string freeCompanyTag)
+            => string.IsNullOrEmpty(freeCompanyTag) || !string.IsNullOrEmpty(freeCompanyName);
+
+        private string GetCurrentLocationName()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            territories ??= DataManager.GetExcelSheet<TerritoryType>();
+            var territory = territories.GetRow(ClientState.TerritoryType);
+            var territoryName = territory.PlaceName.Value.Name.ToString() ?? "Unknown Location";
+
+            switch (ClientState.TerritoryType)
+            {
+                case 1250: //Minimalist Private House 
+                    return "Private House - Minimalist";
+                case 1251: //Minimalist Private Mansion 
+                    return "Private Mansion - Minimalist";
+                case 1375: //Minimalist Private House Dark 
+                    return "Private House - Minimalist";
+                case 1376: //Minimalist Private Mansion Dark 
+                    return "Private Mansion - Minimalist";
+                default:
+                    return string.IsNullOrEmpty(territoryName)
+                        ? "Unknown Location"
+                        : territoryName;
+            }
+        }
+
+        private string GetWidgetPartySize()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            return Math.Max(1, GetPartySize()).ToString();
         }
 
         private string GetTripleTriadProgress()
@@ -372,6 +611,60 @@ namespace BetterDiscordRichPresence
             return $"{collected}/{tripleTriadCardTotal}";
         }
 
+        private string GetMountsCollected()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            mounts ??= DataManager.GetExcelSheet<Mount>();
+
+            if (mountTotal < 0)
+            {
+                mountTotal = 0;
+                foreach (var mount in mounts)
+                {
+                    if (mount.RowId != 0)
+                        mountTotal++;
+                }
+            }
+
+            var collected = 0;
+            foreach (var mount in mounts)
+            {
+                if (mount.RowId != 0 && UnlockState.IsMountUnlocked(mount))
+                    collected++;
+            }
+
+            return $"{collected}/{mountTotal}";
+        }
+
+        private string GetMinionsCollected()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            companions ??= DataManager.GetExcelSheet<Companion>();
+
+            if (companionTotal < 0)
+            {
+                companionTotal = 0;
+                foreach (var companion in companions)
+                {
+                    if (companion.RowId != 0)
+                        companionTotal++;
+                }
+            }
+
+            var collected = 0;
+            foreach (var companion in companions)
+            {
+                if (companion.RowId != 0 && UnlockState.IsCompanionUnlocked(companion))
+                    collected++;
+            }
+
+            return $"{collected}/{companionTotal}";
+        }
+
         internal void UpdateRichPresence()
         {
             if (discordService == null || !discordService.IsInitialized)
@@ -384,25 +677,8 @@ namespace BetterDiscordRichPresence
             if (character == null)
                 return;
 
-            territories ??= DataManager.GetExcelSheet<TerritoryType>();
-            var territory = territories.GetRow(ClientState.TerritoryType);
-            var territoryName = territory.PlaceName.Value.Name.ToString() ?? "Unknown Location";
+            var territoryName = GetCurrentLocationName();
             Log.Information("{TerritoryIsd}", ClientState.TerritoryType);
-            switch (ClientState.TerritoryType)
-            {
-                case 1250: //Minimalist Private House 
-                    territoryName = "Private House - Minimalist";
-                    break;
-                case 1251: //Minimalist Private Mansion 
-                    territoryName = "Private Mansion - Minimalist";
-                    break;
-                case 1375: //Minimalist Private House Dark 
-                    territoryName = "Private House - Minimalist";
-                    break;
-                case 1376: //Minimalist Private Mansion Dark 
-                    territoryName = "Private Mansion - Minimalist";
-                    break;
-            }
             
             var partySize = GetPartySize();
             var maxParty = 4;
@@ -513,4 +789,13 @@ namespace BetterDiscordRichPresence
             return null;
         }
     }
+
+    internal readonly record struct WidgetAutomaticUpdateDebugInfo(
+        TimeSpan Interval,
+        DateTime NextUpdateUtc,
+        TimeSpan Remaining,
+        bool IsUpdateRunning,
+        bool IsLoggedIn,
+        bool IsWidgetConfigured,
+        bool IsCurrentCharacterAllowed);
 }
