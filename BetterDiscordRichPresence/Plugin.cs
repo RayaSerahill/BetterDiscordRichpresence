@@ -214,6 +214,14 @@ namespace BetterDiscordRichPresence
                         string.Empty,
                         string.Empty,
                         string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
                         string.Empty));
             }
         }
@@ -393,11 +401,17 @@ namespace BetterDiscordRichPresence
             var character = ObjectTable.LocalPlayer;
             var freeCompanyTag = character?.CompanyTag.TextValue ?? string.Empty;
             var freeCompanyName = ReadFreeCompanyName(freeCompanyTag);
+            var characterName = character?.Name.TextValue ?? string.Empty;
+            var currentWorld = string.Empty;
+            var homeWorld = string.Empty;
+            var job = string.Empty;
+            var jobAbbreviation = string.Empty;
+            var level = string.Empty;
 
             if (character != null)
             {
                 var freeCompanyValues = ResolveWidgetFreeCompanyValues(
-                    character.Name.TextValue,
+                    characterName,
                     character.HomeWorld.RowId,
                     character.CurrentWorld.RowId,
                     freeCompanyName,
@@ -405,6 +419,11 @@ namespace BetterDiscordRichPresence
 
                 freeCompanyName = freeCompanyValues.FreeCompanyName;
                 freeCompanyTag = freeCompanyValues.FreeCompanyTag;
+                currentWorld = character.CurrentWorld.Value.Name.ToString();
+                homeWorld = character.HomeWorld.Value.Name.ToString();
+                job = character.ClassJob.Value.Name.ToString();
+                jobAbbreviation = character.ClassJob.Value.Abbreviation.ToString();
+                level = character.Level.ToString();
             }
 
             return new WidgetPlaceholderContext(
@@ -412,7 +431,15 @@ namespace BetterDiscordRichPresence
                 freeCompanyTag,
                 GetTripleTriadProgress(),
                 GetMountsCollected(),
-                GetMinionsCollected());
+                GetMinionsCollected(),
+                characterName,
+                currentWorld,
+                homeWorld,
+                GetCurrentLocationName(),
+                job,
+                jobAbbreviation,
+                level,
+                GetWidgetPartySize());
         }
 
         private unsafe string ReadFreeCompanyName(string freeCompanyTag)
@@ -505,6 +532,40 @@ namespace BetterDiscordRichPresence
 
         private static bool CanCacheWidgetFreeCompany(string freeCompanyName, string freeCompanyTag)
             => string.IsNullOrEmpty(freeCompanyTag) || !string.IsNullOrEmpty(freeCompanyName);
+
+        private string GetCurrentLocationName()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            territories ??= DataManager.GetExcelSheet<TerritoryType>();
+            var territory = territories.GetRow(ClientState.TerritoryType);
+            var territoryName = territory.PlaceName.Value.Name.ToString() ?? "Unknown Location";
+
+            switch (ClientState.TerritoryType)
+            {
+                case 1250: //Minimalist Private House 
+                    return "Private House - Minimalist";
+                case 1251: //Minimalist Private Mansion 
+                    return "Private Mansion - Minimalist";
+                case 1375: //Minimalist Private House Dark 
+                    return "Private House - Minimalist";
+                case 1376: //Minimalist Private Mansion Dark 
+                    return "Private Mansion - Minimalist";
+                default:
+                    return string.IsNullOrEmpty(territoryName)
+                        ? "Unknown Location"
+                        : territoryName;
+            }
+        }
+
+        private string GetWidgetPartySize()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            return Math.Max(1, GetPartySize()).ToString();
+        }
 
         private string GetTripleTriadProgress()
         {
@@ -599,25 +660,8 @@ namespace BetterDiscordRichPresence
             if (character == null)
                 return;
 
-            territories ??= DataManager.GetExcelSheet<TerritoryType>();
-            var territory = territories.GetRow(ClientState.TerritoryType);
-            var territoryName = territory.PlaceName.Value.Name.ToString() ?? "Unknown Location";
+            var territoryName = GetCurrentLocationName();
             Log.Information("{TerritoryIsd}", ClientState.TerritoryType);
-            switch (ClientState.TerritoryType)
-            {
-                case 1250: //Minimalist Private House 
-                    territoryName = "Private House - Minimalist";
-                    break;
-                case 1251: //Minimalist Private Mansion 
-                    territoryName = "Private Mansion - Minimalist";
-                    break;
-                case 1375: //Minimalist Private House Dark 
-                    territoryName = "Private House - Minimalist";
-                    break;
-                case 1376: //Minimalist Private Mansion Dark 
-                    territoryName = "Private Mansion - Minimalist";
-                    break;
-            }
             
             var partySize = GetPartySize();
             var maxParty = 4;
