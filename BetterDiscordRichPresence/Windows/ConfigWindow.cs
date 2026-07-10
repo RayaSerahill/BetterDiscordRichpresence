@@ -458,6 +458,50 @@ namespace BetterDiscordRichPresence.Windows
                 UpdateConfig(() => configuration.RPCBridgeEnabled = rpcBridgeEnabled);
 
             ImGui.TextDisabled("Needed when XIVLauncher runs through Wine and Discord runs natively on Linux.");
+
+            ImGui.Separator();
+            DrawAutomaticWidgetUpdateDebug();
+        }
+
+        private void DrawAutomaticWidgetUpdateDebug()
+        {
+            var info = plugin.GetAutomaticWidgetUpdateDebugInfo();
+
+            ImGui.Text("Automatic widget updates");
+            ImGui.Text($"Status: {GetAutomaticWidgetUpdateStatus(info)}");
+            ImGui.Text($"Interval: {FormatDuration(info.Interval)}");
+            ImGui.Text($"Next update: {info.NextUpdateUtc:yyyy-MM-dd HH:mm:ss} UTC");
+            ImGui.Text($"Time remaining: {FormatDuration(info.Remaining)}");
+            ImGui.Text($"Background request: {(info.IsUpdateRunning ? "Running" : "Idle")}");
+        }
+
+        private static string GetAutomaticWidgetUpdateStatus(WidgetAutomaticUpdateDebugInfo info)
+        {
+            if (info.IsUpdateRunning)
+                return "Updating";
+
+            if (!info.IsLoggedIn)
+                return "Paused until logged in";
+
+            if (!info.IsWidgetConfigured)
+                return "Waiting for complete widget configuration";
+
+            if (!info.IsCurrentCharacterAllowed)
+                return "Paused by character filter";
+
+            return info.Remaining <= TimeSpan.Zero
+                ? "Due"
+                : "Waiting";
+        }
+
+        private static string FormatDuration(TimeSpan value)
+        {
+            if (value < TimeSpan.Zero)
+                value = TimeSpan.Zero;
+
+            return value.TotalHours >= 1
+                ? $"{(int)value.TotalHours}:{value.Minutes:D2}:{value.Seconds:D2}"
+                : $"{value.Minutes:D2}:{value.Seconds:D2}";
         }
 
         private void UpdateConfig(Action applyChanges)

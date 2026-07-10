@@ -263,6 +263,23 @@ namespace BetterDiscordRichPresence
         internal void ResetAutomaticWidgetUpdateTimer()
             => nextAutomaticWidgetUpdateTime = DateTime.UtcNow.Add(WidgetAutomaticUpdateInterval);
 
+        internal WidgetAutomaticUpdateDebugInfo GetAutomaticWidgetUpdateDebugInfo()
+        {
+            var now = DateTime.UtcNow;
+            var remaining = nextAutomaticWidgetUpdateTime <= now
+                ? TimeSpan.Zero
+                : nextAutomaticWidgetUpdateTime - now;
+
+            return new WidgetAutomaticUpdateDebugInfo(
+                WidgetAutomaticUpdateInterval,
+                nextAutomaticWidgetUpdateTime,
+                remaining,
+                automaticWidgetUpdateTask is { IsCompleted: false },
+                ClientState.IsLoggedIn,
+                Configuration.IsWidgetConfigured(),
+                IsCurrentCharacterAllowedForWidget());
+        }
+
         private async Task<WidgetUpdateResult> SendWidgetUpdateAsync()
         {
             if (!Configuration.IsWidgetConfigured())
@@ -772,4 +789,13 @@ namespace BetterDiscordRichPresence
             return null;
         }
     }
+
+    internal readonly record struct WidgetAutomaticUpdateDebugInfo(
+        TimeSpan Interval,
+        DateTime NextUpdateUtc,
+        TimeSpan Remaining,
+        bool IsUpdateRunning,
+        bool IsLoggedIn,
+        bool IsWidgetConfigured,
+        bool IsCurrentCharacterAllowed);
 }
