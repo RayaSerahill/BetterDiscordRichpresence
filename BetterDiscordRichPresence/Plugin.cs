@@ -199,13 +199,19 @@ namespace BetterDiscordRichPresence
 
         private void OnCommand(string command, string args)
         {
-            if (string.IsNullOrWhiteSpace(args))
+            var trimmedArgs = args.Trim();
+
+            if (string.IsNullOrWhiteSpace(trimmedArgs))
             {
                 ToggleConfigUI();
             }
-            else if (args.Trim().Equals("refresh", StringComparison.OrdinalIgnoreCase))
+            else if (trimmedArgs.Equals("refresh", StringComparison.OrdinalIgnoreCase))
             {
                 UpdateRichPresence();
+            }
+            else if (trimmedArgs.Equals("debug", StringComparison.OrdinalIgnoreCase))
+            {
+                configWindow.ShowDebugTab();
             }
         }
 

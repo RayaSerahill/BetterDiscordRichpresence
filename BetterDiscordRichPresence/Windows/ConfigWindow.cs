@@ -14,6 +14,8 @@ namespace BetterDiscordRichPresence.Windows
         private Task<WidgetUpdateResult>? widgetUpdateTask;
         private string widgetUpdateStatus = string.Empty;
         private bool? widgetUpdateSucceeded;
+        private bool debugTabVisible;
+        private bool selectDebugTab;
 
         public ConfigWindow(Plugin plugin)
             : base("BetterDiscordRichPresence Settings###BDRP_Config")
@@ -40,26 +42,32 @@ namespace BetterDiscordRichPresence.Windows
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Buttons"))
-                {
-                    DrawButtonSettings();
-                    ImGui.EndTabItem();
-                }
-
-                if (ImGui.BeginTabItem("Images"))
-                {
-                    DrawImageSettings();
-                    ImGui.EndTabItem();
-                }
-
                 if (ImGui.BeginTabItem("Widget"))
                 {
                     DrawWidgetSettings();
                     ImGui.EndTabItem();
                 }
 
+                if (debugTabVisible)
+                {
+                    var debugTabFlags = selectDebugTab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+                    if (ImGui.BeginTabItem("Debug", debugTabFlags))
+                    {
+                        selectDebugTab = false;
+                        DrawDebugSettings();
+                        ImGui.EndTabItem();
+                    }
+                }
+
                 ImGui.EndTabBar();
             }
+        }
+
+        internal void ShowDebugTab()
+        {
+            debugTabVisible = true;
+            selectDebugTab = true;
+            IsOpen = true;
         }
 
         private void DrawWidgetSettings()
@@ -366,6 +374,15 @@ namespace BetterDiscordRichPresence.Windows
         }
 
         private void DrawGeneralSettings()
+        {
+            if (ImGui.CollapsingHeader("Buttons", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawButtonSettings();
+
+            if (ImGui.CollapsingHeader("Custom Images", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawImageSettings();
+        }
+
+        private void DrawDebugSettings()
         {
             ImGui.Text("Discord Application ID");
             ImGui.SameLine();
