@@ -42,6 +42,7 @@ namespace BetterDiscordRichPresence
         private readonly WindowSystem windowSystem = new("BetterDiscordRichPresence");
         private readonly WidgetService widgetService = new();
         private readonly WidgetPlaceholderResolver widgetPlaceholderResolver = new();
+        private readonly StatusTextPlaceholderResolver statusTextPlaceholderResolver = new();
         private readonly CancellationTokenSource disposeTokenSource = new();
         private readonly ConfigWindow configWindow;
         private readonly PlaceholderWindow placeholderWindow;
@@ -410,6 +411,10 @@ namespace BetterDiscordRichPresence
             if (partySize > 8) maxParty = 24;
 
             var partyString = partySize > 1 ? $" ({partySize} of {maxParty})" : string.Empty;
+            var statusContext = new StatusTextPlaceholderContext(
+                character.Name.TextValue,
+                partyString,
+                territoryName);
 
             var zoneMatch = FindZoneMatch(territoryName);
 
@@ -429,12 +434,16 @@ namespace BetterDiscordRichPresence
 
             var presence = new RichPresence
             {
-                Details = $"{character.Name} {partyString}",
-                State = $"in {territoryName}",
+                Details = statusTextPlaceholderResolver.Resolve(
+                    Configuration.StatusDetails ?? Configuration.DefaultStatusDetails,
+                    statusContext),
+                State = statusTextPlaceholderResolver.Resolve(
+                    Configuration.StatusState ?? Configuration.DefaultStatusState,
+                    statusContext),
                 Assets = new Assets
                 {
                     LargeImageKey = imageKey,
-                    LargeImageText = territoryName
+                    LargeImageText = "Final Fantasy XIV"
                 },
                 Timestamps = new Timestamps { Start = startTime },
             };

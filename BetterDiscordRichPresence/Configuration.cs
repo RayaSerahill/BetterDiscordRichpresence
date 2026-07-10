@@ -31,6 +31,12 @@ namespace BetterDiscordRichPresence
         // Default image URL for rich presence
         public string ImageUrl    { get; set; } = string.Empty;
 
+        // Rich presence status text templates
+        public const string DefaultStatusDetails = "{CharacterName}{PartySize}";
+        public const string DefaultStatusState = "in {Location}";
+        public string StatusDetails { get; set; } = DefaultStatusDetails;
+        public string StatusState   { get; set; } = DefaultStatusState;
+
         // Discord application ID for rich presence
         public string DiscordApp { get; set; } = "1398478033429598268";
 
