@@ -54,7 +54,11 @@ namespace BetterDiscordRichPresence
         private DateTime territoryUpdateTime;
         private ExcelSheet<TerritoryType>? territories;
         private ExcelSheet<TripleTriadCard>? tripleTriadCards;
+        private ExcelSheet<Mount>? mounts;
+        private ExcelSheet<Companion>? companions;
         private int tripleTriadCardTotal = -1;
+        private int mountTotal = -1;
+        private int companionTotal = -1;
 
         private DateTime nextPartyCheckTime = DateTime.MinValue;
         private int lastPartySize = -1;
@@ -205,7 +209,12 @@ namespace BetterDiscordRichPresence
             {
                 Log.Error(ex, "Failed to read current widget placeholder values.");
                 return widgetPlaceholderResolver.GetValues(
-                    new WidgetPlaceholderContext(string.Empty, string.Empty, string.Empty));
+                    new WidgetPlaceholderContext(
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty,
+                        string.Empty));
             }
         }
 
@@ -401,7 +410,9 @@ namespace BetterDiscordRichPresence
             return new WidgetPlaceholderContext(
                 freeCompanyName,
                 freeCompanyTag,
-                GetTripleTriadProgress());
+                GetTripleTriadProgress(),
+                GetMountsCollected(),
+                GetMinionsCollected());
         }
 
         private unsafe string ReadFreeCompanyName(string freeCompanyTag)
@@ -520,6 +531,60 @@ namespace BetterDiscordRichPresence
             }
 
             return $"{collected}/{tripleTriadCardTotal}";
+        }
+
+        private string GetMountsCollected()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            mounts ??= DataManager.GetExcelSheet<Mount>();
+
+            if (mountTotal < 0)
+            {
+                mountTotal = 0;
+                foreach (var mount in mounts)
+                {
+                    if (mount.RowId != 0)
+                        mountTotal++;
+                }
+            }
+
+            var collected = 0;
+            foreach (var mount in mounts)
+            {
+                if (mount.RowId != 0 && UnlockState.IsMountUnlocked(mount))
+                    collected++;
+            }
+
+            return $"{collected}/{mountTotal}";
+        }
+
+        private string GetMinionsCollected()
+        {
+            if (!ClientState.IsLoggedIn)
+                return string.Empty;
+
+            companions ??= DataManager.GetExcelSheet<Companion>();
+
+            if (companionTotal < 0)
+            {
+                companionTotal = 0;
+                foreach (var companion in companions)
+                {
+                    if (companion.RowId != 0)
+                        companionTotal++;
+                }
+            }
+
+            var collected = 0;
+            foreach (var companion in companions)
+            {
+                if (companion.RowId != 0 && UnlockState.IsCompanionUnlocked(companion))
+                    collected++;
+            }
+
+            return $"{collected}/{companionTotal}";
         }
 
         internal void UpdateRichPresence()

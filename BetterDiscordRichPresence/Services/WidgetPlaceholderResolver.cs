@@ -11,6 +11,8 @@ namespace BetterDiscordRichPresence.Services
                 new WidgetPlaceholderDefinition("{FCName}", context => context.FreeCompanyName),
                 new WidgetPlaceholderDefinition("{FCTag}", context => context.FreeCompanyTag),
                 new WidgetPlaceholderDefinition("{TTProgress}", context => context.TripleTriadProgress),
+                new WidgetPlaceholderDefinition("{MountsCollected}", context => context.MountsCollected),
+                new WidgetPlaceholderDefinition("{MinionsCollected}", context => context.MinionsCollected),
             };
 
         public WidgetUpdateRequest Resolve(
@@ -54,5 +56,7 @@ namespace BetterDiscordRichPresence.Services
     internal readonly record struct WidgetPlaceholderContext(
         string FreeCompanyName,
         string FreeCompanyTag,
-        string TripleTriadProgress);
+        string TripleTriadProgress,
+        string MountsCollected,
+        string MinionsCollected);
 }
