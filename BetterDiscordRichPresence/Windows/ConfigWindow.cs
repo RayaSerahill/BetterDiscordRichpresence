@@ -20,7 +20,6 @@ namespace BetterDiscordRichPresence.Windows
         public ConfigWindow(Plugin plugin)
             : base("BetterDiscordRichPresence Settings###BDRP_Config")
         {
-            Flags = ImGuiWindowFlags.NoCollapse;
             Size = new Vector2(700, 650);
             SizeCondition = ImGuiCond.FirstUseEver;
 
