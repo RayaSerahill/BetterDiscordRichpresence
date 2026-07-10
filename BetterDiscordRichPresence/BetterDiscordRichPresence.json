@@ -1,13 +1,16 @@
 {
   "Author": "Raya Serahill",
-  "Name": "BetterDiscordRichPresence",
-  "Punchline": "Discord!",
-  "Description": "Discord!",
+  "Name": "Better Discord Rich Presence",
+  "Punchline": "Discord Rich Presence that allows you to utilize everything discord has to offer, including custom images, custom buttons, widgets, and more!",
+  "Description": "Discord Rich Presence that allows you to utilize everything discord has to offer, including custom images, custom buttons, widgets, and more!",
   "ApplicableVersion": "any",
   "Tags": [
     "better",
     "raya",
     "discord",
-    "serahill"
-  ]
+    "serahill",
+    "widget",
+    "Rich Presence"
+  ],
+  "IconUrl": "https://puni.sh/api/plugins/icon/164"
 }
