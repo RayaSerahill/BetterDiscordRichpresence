@@ -263,6 +263,7 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawButtonSettings()
         {
+            ImGui.TextWrapped("These are the settings affecting rich presence buttons. Buttons show up in your full profile and you can give people links to your website, social media, discord server or anything really in here");
             if (!ImGui.BeginTable("bd_config_table", 4, ImGuiTableFlags.SizingStretchProp))
                 return;
 
@@ -322,6 +323,7 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawImageSettings()
         {
+            ImGui.TextWrapped("These are the settings affecting rich presence image. Namely the big image next to your status text. You can set a default one that is in use in every zone, and then customize by setting zone specific images if you want. Like a pile of cash while in Gold Saucer ^^");
             ImGui.Text("Default Image URL");
             ImGui.SameLine();
             var imageUrl = configuration.ImageUrl ?? string.Empty;
@@ -380,6 +382,7 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawGeneralSettings()
         {
+            ImGui.TextWrapped("These are the general settings affecting rich presence only");
             if (ImGui.CollapsingHeader("Status text", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawStatusTextSettings();
 
@@ -392,6 +395,9 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawStatusTextSettings()
         {
+            ImGui.TextWrapped("Status text is the text displayed prominently in rich presence. " +
+                              "You can control how much or little you want to share in it. " +
+                              "Just edit the contents of the text boxes below as you see fit");
             ImGui.TextDisabled("Placeholders: {CharacterName}, {PartySize}, {Location}");
 
             if (!ImGui.BeginTable("bd_status_text_table", 2, ImGuiTableFlags.SizingStretchProp))
