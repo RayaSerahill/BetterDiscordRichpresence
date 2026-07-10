@@ -72,6 +72,8 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawWidgetSettings()
         {
+            ImGui.Spacing();
+
             var allFieldsComplete = configuration.IsWidgetConfigured();
             var characterAllowed = plugin.IsCurrentCharacterAllowedForWidget();
             var canUpdate = allFieldsComplete && characterAllowed && widgetUpdateTask == null;
@@ -79,7 +81,7 @@ namespace BetterDiscordRichPresence.Windows
             if (!canUpdate)
                 ImGui.BeginDisabled();
 
-            if (ImGui.Button("update widget"))
+            if (ImGui.Button("Update widget"))
             {
                 widgetUpdateStatus = "Updating widget...";
                 widgetUpdateSucceeded = null;
