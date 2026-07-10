@@ -37,6 +37,7 @@ namespace BetterDiscordRichPresence
         private const string CommandName = "/drp";
         private static readonly TimeSpan WidgetLoginUpdateDelay = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan WidgetLoginUpdateTimeout = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan WidgetAutomaticUpdateInterval = TimeSpan.FromMinutes(5);
 
         public Configuration Configuration { get; }
         private readonly WindowSystem windowSystem = new("BetterDiscordRichPresence");
@@ -61,6 +62,8 @@ namespace BetterDiscordRichPresence
         private bool pendingLoginWidgetUpdate;
         private DateTime loginWidgetUpdateTime;
         private DateTime loginWidgetUpdateDeadline;
+        private DateTime nextAutomaticWidgetUpdateTime = DateTime.UtcNow.Add(WidgetAutomaticUpdateInterval);
+        private Task? automaticWidgetUpdateTask;
 
         public Plugin()
         {
@@ -127,6 +130,7 @@ namespace BetterDiscordRichPresence
             pendingLoginWidgetUpdate = true;
             loginWidgetUpdateTime = DateTime.UtcNow.Add(WidgetLoginUpdateDelay);
             loginWidgetUpdateDeadline = DateTime.UtcNow.Add(WidgetLoginUpdateTimeout);
+            ResetAutomaticWidgetUpdateTimer();
             UpdateRichPresence();
         }
 
@@ -147,6 +151,7 @@ namespace BetterDiscordRichPresence
 
             nextPartyCheckTime = DateTime.UtcNow.AddSeconds(1);
             TrySendLoginWidgetUpdate();
+            TrySendAutomaticWidgetUpdate();
 
             var partySize = GetPartySize();
             var partyState = GetPartyStateSignature();
@@ -234,6 +239,15 @@ namespace BetterDiscordRichPresence
 
         internal async Task<WidgetUpdateResult> UpdateWidgetAsync()
         {
+            ResetAutomaticWidgetUpdateTimer();
+            return await SendWidgetUpdateAsync().ConfigureAwait(false);
+        }
+
+        internal void ResetAutomaticWidgetUpdateTimer()
+            => nextAutomaticWidgetUpdateTime = DateTime.UtcNow.Add(WidgetAutomaticUpdateInterval);
+
+        private async Task<WidgetUpdateResult> SendWidgetUpdateAsync()
+        {
             if (!Configuration.IsWidgetConfigured())
                 return new WidgetUpdateResult(false, "Complete every widget field before updating.");
 
@@ -254,6 +268,48 @@ namespace BetterDiscordRichPresence
             {
                 Log.Error(ex, "Failed to prepare the Discord widget update.");
                 return new WidgetUpdateResult(false, $"Widget update failed: {ex.Message}");
+            }
+        }
+
+        private void TrySendAutomaticWidgetUpdate()
+        {
+            if (automaticWidgetUpdateTask is { IsCompleted: false })
+                return;
+
+            automaticWidgetUpdateTask = null;
+
+            var now = DateTime.UtcNow;
+            if (now < nextAutomaticWidgetUpdateTime)
+                return;
+
+            ResetAutomaticWidgetUpdateTimer();
+
+            if (!Configuration.IsWidgetConfigured())
+                return;
+
+            if (!IsCurrentCharacterAllowedForWidget())
+            {
+                Log.Information("Skipped the Discord widget automatic update because the character filter did not match.");
+                return;
+            }
+
+            automaticWidgetUpdateTask = SendAutomaticWidgetUpdateAsync();
+        }
+
+        private async Task SendAutomaticWidgetUpdateAsync()
+        {
+            try
+            {
+                var result = await SendWidgetUpdateAsync().ConfigureAwait(false);
+
+                if (result.Success)
+                    Log.Information("Updated the Discord widget automatically.");
+                else
+                    Log.Warning($"Discord widget automatic update failed: {result.Message}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update the Discord widget automatically.");
             }
         }
 

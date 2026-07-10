@@ -235,7 +235,10 @@ namespace BetterDiscordRichPresence.Windows
             ImGui.SetNextItemWidth(-1);
             var value = getValue() ?? string.Empty;
             if (ImGui.InputText(id, ref value, 2048, flags))
+            {
                 UpdateConfig(() => setValue(value));
+                plugin.ResetAutomaticWidgetUpdateTimer();
+            }
         }
 
         private void PollWidgetUpdate()
