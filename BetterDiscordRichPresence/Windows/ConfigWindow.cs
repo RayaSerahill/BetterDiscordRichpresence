@@ -380,11 +380,59 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawGeneralSettings()
         {
+            if (ImGui.CollapsingHeader("Status text", ImGuiTreeNodeFlags.DefaultOpen))
+                DrawStatusTextSettings();
+
             if (ImGui.CollapsingHeader("Buttons", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawButtonSettings();
 
             if (ImGui.CollapsingHeader("Custom Images", ImGuiTreeNodeFlags.DefaultOpen))
                 DrawImageSettings();
+        }
+
+        private void DrawStatusTextSettings()
+        {
+            ImGui.TextDisabled("Placeholders: {CharacterName}, {PartySize}, {Location}");
+
+            if (!ImGui.BeginTable("bd_status_text_table", 2, ImGuiTableFlags.SizingStretchProp))
+                return;
+
+            ImGui.TableSetupColumn("Line", ImGuiTableColumnFlags.WidthFixed, 100f);
+            ImGui.TableSetupColumn("Text");
+
+            DrawStatusTextField(
+                "Upper line",
+                "##bd_status_details",
+                () => configuration.StatusDetails,
+                value => configuration.StatusDetails = value);
+            DrawStatusTextField(
+                "Lower line",
+                "##bd_status_state",
+                () => configuration.StatusState,
+                value => configuration.StatusState = value);
+
+            ImGui.EndTable();
+        }
+
+        private void DrawStatusTextField(
+            string label,
+            string id,
+            Func<string> getValue,
+            Action<string> setValue)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(0);
+            ImGui.Text(label);
+
+            ImGui.TableSetColumnIndex(1);
+            ImGui.SetNextItemWidth(-1);
+            var value = getValue() ?? string.Empty;
+            if (ImGui.InputText(id, ref value, 512))
+                UpdateConfig(() =>
+                {
+                    setValue(value);
+                    plugin.UpdateRichPresence();
+                });
         }
 
         private void DrawDebugSettings()
