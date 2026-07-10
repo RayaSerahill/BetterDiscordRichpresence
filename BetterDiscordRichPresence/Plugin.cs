@@ -443,7 +443,7 @@ namespace BetterDiscordRichPresence
                 Assets = new Assets
                 {
                     LargeImageKey = imageKey,
-                    LargeImageText = territoryName
+                    LargeImageText = "Final Fantasy XIV"
                 },
                 Timestamps = new Timestamps { Start = startTime },
             };
