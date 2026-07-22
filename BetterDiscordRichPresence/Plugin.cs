@@ -37,7 +37,7 @@ namespace BetterDiscordRichPresence
         private const string CommandName = "/drp";
         private static readonly TimeSpan WidgetLoginUpdateDelay = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan WidgetLoginUpdateTimeout = TimeSpan.FromSeconds(15);
-        private static readonly TimeSpan WidgetAutomaticUpdateInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan WidgetAutomaticUpdateInterval = TimeSpan.FromHours(24);
 
         public Configuration Configuration { get; }
         private readonly WindowSystem windowSystem = new("BetterDiscordRichPresence");
@@ -66,13 +66,14 @@ namespace BetterDiscordRichPresence
         private bool pendingLoginWidgetUpdate;
         private DateTime loginWidgetUpdateTime;
         private DateTime loginWidgetUpdateDeadline;
-        private DateTime nextAutomaticWidgetUpdateTime = DateTime.UtcNow.Add(WidgetAutomaticUpdateInterval);
+        private DateTime nextAutomaticWidgetUpdateTime;
         private Task? automaticWidgetUpdateTask;
 
         public Plugin()
         {
             ECommonsMain.Init(PluginInterface, this, Module.DalamudReflector);
             Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            nextAutomaticWidgetUpdateTime = NormalizeUtc(Configuration.WidgetNextAutomaticUpdateUtc);
             configWindow = new ConfigWindow(this);
             placeholderWindow = new PlaceholderWindow(this);
             guideWindow = new GuideWindow();
@@ -134,7 +135,6 @@ namespace BetterDiscordRichPresence
             pendingLoginWidgetUpdate = true;
             loginWidgetUpdateTime = DateTime.UtcNow.Add(WidgetLoginUpdateDelay);
             loginWidgetUpdateDeadline = DateTime.UtcNow.Add(WidgetLoginUpdateTimeout);
-            ResetAutomaticWidgetUpdateTimer();
             UpdateRichPresence();
         }
 
@@ -260,19 +260,22 @@ namespace BetterDiscordRichPresence
             return await SendWidgetUpdateAsync().ConfigureAwait(false);
         }
 
-        internal void ResetAutomaticWidgetUpdateTimer()
-            => nextAutomaticWidgetUpdateTime = DateTime.UtcNow.Add(WidgetAutomaticUpdateInterval);
+        internal void ResetAutomaticWidgetUpdateTimer(bool save = true)
+            => ScheduleNextAutomaticWidgetUpdate(DateTime.UtcNow, save);
 
         internal WidgetAutomaticUpdateDebugInfo GetAutomaticWidgetUpdateDebugInfo()
         {
             var now = DateTime.UtcNow;
-            var remaining = nextAutomaticWidgetUpdateTime <= now
+            var nextUpdateUtc = nextAutomaticWidgetUpdateTime == DateTime.MinValue
+                ? now
+                : nextAutomaticWidgetUpdateTime;
+            var remaining = nextUpdateUtc <= now
                 ? TimeSpan.Zero
-                : nextAutomaticWidgetUpdateTime - now;
+                : nextUpdateUtc - now;
 
             return new WidgetAutomaticUpdateDebugInfo(
                 WidgetAutomaticUpdateInterval,
-                nextAutomaticWidgetUpdateTime,
+                nextUpdateUtc,
                 remaining,
                 automaticWidgetUpdateTask is { IsCompleted: false },
                 ClientState.IsLoggedIn,
@@ -313,20 +316,16 @@ namespace BetterDiscordRichPresence
             automaticWidgetUpdateTask = null;
 
             var now = DateTime.UtcNow;
-            if (now < nextAutomaticWidgetUpdateTime)
+            if (pendingLoginWidgetUpdate || !IsAutomaticWidgetUpdateDue(now))
                 return;
-
-            ResetAutomaticWidgetUpdateTimer();
 
             if (!Configuration.IsWidgetConfigured())
                 return;
 
             if (!IsCurrentCharacterAllowedForWidget())
-            {
-                Log.Information("Skipped the Discord widget automatic update because the character filter did not match.");
                 return;
-            }
 
+            ScheduleNextAutomaticWidgetUpdate(now);
             automaticWidgetUpdateTask = SendAutomaticWidgetUpdateAsync();
         }
 
@@ -372,6 +371,18 @@ namespace BetterDiscordRichPresence
                 return;
             }
 
+            if (automaticWidgetUpdateTask is { IsCompleted: false })
+            {
+                loginWidgetUpdateTime = now.AddSeconds(1);
+                return;
+            }
+
+            if (!IsAutomaticWidgetUpdateDue(now))
+            {
+                pendingLoginWidgetUpdate = false;
+                return;
+            }
+
             try
             {
                 var context = GetWidgetPlaceholderContext();
@@ -384,7 +395,8 @@ namespace BetterDiscordRichPresence
                 }
 
                 pendingLoginWidgetUpdate = false;
-                _ = SendLoginWidgetUpdateAsync(context);
+                ScheduleNextAutomaticWidgetUpdate(now);
+                automaticWidgetUpdateTask = SendLoginWidgetUpdateAsync(context);
             }
             catch (Exception ex)
             {
@@ -411,6 +423,32 @@ namespace BetterDiscordRichPresence
             {
                 Log.Error(ex, "Failed to update the Discord widget after character login.");
             }
+        }
+
+        private bool IsAutomaticWidgetUpdateDue(DateTime now)
+            => nextAutomaticWidgetUpdateTime == DateTime.MinValue
+               || now >= nextAutomaticWidgetUpdateTime;
+
+        private void ScheduleNextAutomaticWidgetUpdate(DateTime now, bool save = true)
+        {
+            nextAutomaticWidgetUpdateTime = now.Add(WidgetAutomaticUpdateInterval);
+            Configuration.WidgetNextAutomaticUpdateUtc = nextAutomaticWidgetUpdateTime;
+
+            if (save)
+                Configuration.Save();
+        }
+
+        private static DateTime NormalizeUtc(DateTime value)
+        {
+            if (value == DateTime.MinValue)
+                return value;
+
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+            };
         }
 
         private unsafe WidgetPlaceholderContext GetWidgetPlaceholderContext()

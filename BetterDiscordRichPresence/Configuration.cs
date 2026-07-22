@@ -75,6 +75,7 @@ namespace BetterDiscordRichPresence
         public string WidgetStat5Label        { get; set; } = string.Empty;
         public string WidgetStat6Value        { get; set; } = string.Empty;
         public string WidgetStat6Label        { get; set; } = string.Empty;
+        public DateTime WidgetNextAutomaticUpdateUtc { get; set; } = DateTime.MinValue;
         public List<WidgetFreeCompanyCacheEntry> WidgetFreeCompanyCache { get; set; } = new List<WidgetFreeCompanyCacheEntry>();
 
         // Collection of zone-specific image entries

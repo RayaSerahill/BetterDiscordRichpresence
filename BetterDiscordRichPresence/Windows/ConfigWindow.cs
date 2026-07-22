@@ -72,6 +72,7 @@ namespace BetterDiscordRichPresence.Windows
         private void DrawWidgetSettings()
         {
             ImGui.Spacing();
+            ImGui.TextWrapped("Automatic widget updates run once every 24 hours to comply with Discord's imposed limits. Manual updates are still available for experimenting.");
 
             var allFieldsComplete = configuration.IsWidgetConfigured();
             var characterAllowed = plugin.IsCurrentCharacterAllowedForWidget();
@@ -236,8 +237,11 @@ namespace BetterDiscordRichPresence.Windows
             var value = getValue() ?? string.Empty;
             if (ImGui.InputText(id, ref value, 2048, flags))
             {
-                UpdateConfig(() => setValue(value));
-                plugin.ResetAutomaticWidgetUpdateTimer();
+                UpdateConfig(() =>
+                {
+                    setValue(value);
+                    plugin.ResetAutomaticWidgetUpdateTimer(false);
+                });
             }
         }
 
