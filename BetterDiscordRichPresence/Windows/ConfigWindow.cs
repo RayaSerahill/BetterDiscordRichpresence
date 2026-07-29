@@ -270,7 +270,7 @@ namespace BetterDiscordRichPresence.Windows
 
         private void DrawButtonSettings()
         {
-            ImGui.TextWrapped("These are the settings affecting rich presence buttons. Buttons show up in your full profile and you can give people links to your website, social media, discord server or anything really in here");
+            ImGui.TextWrapped("These are the settings affecting rich presence buttons. Buttons show up in your full profile and you can give people links to your website, social media, discord server or anything really in here. To enable a button it needs both text and a link!");
             if (!ImGui.BeginTable("bd_config_table", 4, ImGuiTableFlags.SizingStretchProp))
                 return;
 
@@ -285,10 +285,17 @@ namespace BetterDiscordRichPresence.Windows
             ImGui.Text("Button 1");
 
             ImGui.TableSetColumnIndex(1);
-            var isEnabled1 = configuration.Enabled;
+            var canEnable1 = configuration.IsPrimaryButtonConfigured();
+            var isEnabled1 = canEnable1 && configuration.Enabled;
+            if (!canEnable1)
+                ImGui.BeginDisabled();
+
             if (ImGui.Checkbox("##bd_enabled1", ref isEnabled1))
                 UpdateConfig(() => configuration.Enabled = isEnabled1);
             ImGui.SameLine(); ImGui.TextDisabled("Enabled");
+
+            if (!canEnable1)
+                ImGui.EndDisabled();
 
             ImGui.TableSetColumnIndex(2);
             var text1 = configuration.Text ?? string.Empty;
@@ -308,10 +315,17 @@ namespace BetterDiscordRichPresence.Windows
             ImGui.Text("Button 2");
 
             ImGui.TableSetColumnIndex(1);
-            var isEnabled2 = configuration.Enabled2;
+            var canEnable2 = configuration.IsSecondaryButtonConfigured();
+            var isEnabled2 = canEnable2 && configuration.Enabled2;
+            if (!canEnable2)
+                ImGui.BeginDisabled();
+
             if (ImGui.Checkbox("##bd_enabled2", ref isEnabled2))
                 UpdateConfig(() => configuration.Enabled2 = isEnabled2);
             ImGui.SameLine(); ImGui.TextDisabled("Enabled");
+
+            if (!canEnable2)
+                ImGui.EndDisabled();
 
             ImGui.TableSetColumnIndex(2);
             var text2 = configuration.Text2 ?? string.Empty;
@@ -511,6 +525,7 @@ namespace BetterDiscordRichPresence.Windows
         private void UpdateConfig(Action applyChanges)
         {
             applyChanges();
+            configuration.NormalizeButtonSettings();
             configuration.Save();
         }
     }
