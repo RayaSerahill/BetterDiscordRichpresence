@@ -27,12 +27,12 @@ namespace BetterDiscordRichPresence
         public int Version { get; set; } = 0;
 
         // Primary button settings
-        public bool   Enabled  { get; set; } = true;
+        public bool   Enabled  { get; set; } = false;
         public string Text     { get; set; } = string.Empty;
         public string Link     { get; set; } = string.Empty;
 
         // Secondary button settings
-        public bool   Enabled2 { get; set; } = true;
+        public bool   Enabled2 { get; set; } = false;
         public string Text2    { get; set; } = string.Empty;
         public string Link2    { get; set; } = string.Empty;
 
@@ -104,6 +104,31 @@ namespace BetterDiscordRichPresence
                && HasValue(WidgetStat5Label)
                && HasValue(WidgetStat6Value)
                && HasValue(WidgetStat6Label);
+
+        public bool IsPrimaryButtonConfigured()
+            => HasValue(Text) && HasValue(Link);
+
+        public bool IsSecondaryButtonConfigured()
+            => HasValue(Text2) && HasValue(Link2);
+
+        public bool NormalizeButtonSettings()
+        {
+            var changed = false;
+
+            if (Enabled && !IsPrimaryButtonConfigured())
+            {
+                Enabled = false;
+                changed = true;
+            }
+
+            if (Enabled2 && !IsSecondaryButtonConfigured())
+            {
+                Enabled2 = false;
+                changed = true;
+            }
+
+            return changed;
+        }
 
         // Saves the current configuration to disk
         public void Save()
