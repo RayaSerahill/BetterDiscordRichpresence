@@ -73,6 +73,9 @@ namespace BetterDiscordRichPresence
         {
             ECommonsMain.Init(PluginInterface, this, Module.DalamudReflector);
             Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            if (Configuration.NormalizeButtonSettings())
+                Configuration.Save();
+
             nextAutomaticWidgetUpdateTime = NormalizeUtc(Configuration.WidgetNextAutomaticUpdateUtc);
             configWindow = new ConfigWindow(this);
             placeholderWindow = new PlaceholderWindow(this);
@@ -763,9 +766,9 @@ namespace BetterDiscordRichPresence
             };
 
             var buttons = new List<Button>();
-            if (Configuration.Enabled)
+            if (Configuration.Enabled && Configuration.IsPrimaryButtonConfigured())
                 buttons.Add(new Button { Label = Configuration.Text, Url = Configuration.Link });
-            if (Configuration.Enabled2)
+            if (Configuration.Enabled2 && Configuration.IsSecondaryButtonConfigured())
                 buttons.Add(new Button { Label = Configuration.Text2, Url = Configuration.Link2 });
             presence.Buttons = buttons.ToArray();
 
